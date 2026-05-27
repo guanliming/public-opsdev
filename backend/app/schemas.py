@@ -35,6 +35,7 @@ class ProjectCreate(BaseModel):
     branch: str = "main"
     root_dir: str = "/repo/"
     deploy_script: str = "./deploy.sh"
+    log_path: str = "/var/log/"
 
 
 class ProjectUpdate(BaseModel):
@@ -43,6 +44,7 @@ class ProjectUpdate(BaseModel):
     branch: Optional[str] = None
     root_dir: Optional[str] = None
     deploy_script: Optional[str] = None
+    log_path: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
@@ -52,7 +54,21 @@ class ProjectResponse(BaseModel):
     branch: str
     root_dir: str
     deploy_script: str
+    log_path: str
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DeployLogResponse(BaseModel):
+    id: int
+    project_id: int
+    project_name: str
+    deployer: str
+    status: str
+    log: str
+    started_at: datetime
+    finished_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

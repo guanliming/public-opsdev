@@ -18,6 +18,11 @@ const routes = [
         name: 'Projects',
         component: () => import('../views/Projects.vue'),
       },
+      {
+        path: 'deploy-logs',
+        name: 'DeployLogs',
+        component: () => import('../views/DeployLogs.vue'),
+      },
     ],
   },
 ]

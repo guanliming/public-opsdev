@@ -14,6 +14,10 @@
             <el-icon><Folder /></el-icon>
             <span>项目配置</span>
           </el-menu-item>
+          <el-menu-item index="/deploy-logs">
+            <el-icon><Document /></el-icon>
+            <span>部署日志</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
       <el-main>
@@ -25,7 +29,7 @@
 
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
-import { Folder } from '@element-plus/icons-vue'
+import { Folder, Document } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()

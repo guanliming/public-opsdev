@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Text
 from datetime import datetime, timezone
 
 from app.database import Base
@@ -23,5 +23,19 @@ class Project(Base):
     branch = Column(String(100), nullable=False, default="main")
     root_dir = Column(String(500), nullable=False, default="/repo/")
     deploy_script = Column(String(500), nullable=False, default="./deploy.sh")
+    log_path = Column(String(500), nullable=False, default="/var/log/")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class DeployLog(Base):
+    __tablename__ = "deploy_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, nullable=False, index=True)
+    project_name = Column(String(100), nullable=False)
+    deployer = Column(String(50), nullable=False)
+    status = Column(String(20), nullable=False, default="running")
+    log = Column(Text, nullable=False, default="")
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    finished_at = Column(DateTime, nullable=True)
