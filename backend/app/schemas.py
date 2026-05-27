@@ -92,3 +92,62 @@ class DeployLogPageResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class MenuLinkCreate(BaseModel):
+    name: str
+    url: str
+    icon: str = ""
+    sort_order: int = 0
+
+
+class MenuLinkUpdate(BaseModel):
+    name: Optional[str] = None
+    url: Optional[str] = None
+    icon: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class MenuLinkResponse(BaseModel):
+    id: int
+    name: str
+    url: str
+    icon: str
+    sort_order: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VirtualMachineCreate(BaseModel):
+    name: str
+    host: str
+    port: int = 22
+    username: str
+    password: str
+    icon: str = ""
+    sort_order: int = 0
+
+
+class VirtualMachineUpdate(BaseModel):
+    name: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    icon: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class VirtualMachineResponse(BaseModel):
+    id: int
+    name: str
+    host: str
+    port: int
+    username: str
+    password: str
+    icon: str
+    sort_order: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

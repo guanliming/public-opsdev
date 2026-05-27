@@ -11,8 +11,13 @@ const routes = [
     path: '/',
     name: 'Layout',
     component: () => import('../views/Layout.vue'),
-    redirect: '/projects',
+    redirect: '/portal',
     children: [
+      {
+        path: 'portal',
+        name: 'Portal',
+        component: () => import('../views/Portal.vue'),
+      },
       {
         path: 'app-logs',
         name: 'AppLogs',
@@ -32,6 +37,16 @@ const routes = [
         path: 'users',
         name: 'Users',
         component: () => import('../views/Users.vue'),
+      },
+      {
+        path: 'menu-manage',
+        name: 'MenuManage',
+        component: () => import('../views/MenuManage.vue'),
+      },
+      {
+        path: 'vm-manage',
+        name: 'VmManage',
+        component: () => import('../views/VmManage.vue'),
       },
     ],
   },

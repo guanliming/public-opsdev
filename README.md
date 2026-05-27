@@ -20,6 +20,7 @@ pip install -r requirements.txt
 python init_user.py
 
 # 启动服务
+ss -lntp | grep 8000
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 

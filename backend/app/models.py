@@ -40,3 +40,28 @@ class DeployLog(Base):
     log = Column(Text, nullable=False, default="")
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     finished_at = Column(DateTime, nullable=True)
+
+
+class MenuLink(Base):
+    __tablename__ = "menu_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    url = Column(String(500), nullable=False)
+    icon = Column(String(100), nullable=True, default="")
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class VirtualMachine(Base):
+    __tablename__ = "virtual_machines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    host = Column(String(255), nullable=False)
+    port = Column(Integer, nullable=False, default=22)
+    username = Column(String(100), nullable=False)
+    password = Column(String(255), nullable=False)
+    icon = Column(String(100), nullable=True, default="")
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -20,6 +20,10 @@
     <el-container>
       <el-aside :width="collapsed ? '64px' : '200px'" style="background: #fff; border-right: 1px solid #e8e8e8; transition: width 0.3s;">
         <el-menu :default-active="route.path" router :collapse="collapsed">
+          <el-menu-item index="/portal">
+            <el-icon><HomeFilled /></el-icon>
+            <template #title>首页</template>
+          </el-menu-item>
           <el-menu-item index="/app-logs">
             <el-icon><Monitor /></el-icon>
             <template #title>应用日志</template>
@@ -35,6 +39,14 @@
           <el-menu-item v-if="userStore.isAdmin" index="/users">
             <el-icon><UserIcon /></el-icon>
             <template #title>用户管理</template>
+          </el-menu-item>
+          <el-menu-item v-if="userStore.isAdmin" index="/vm-manage">
+            <el-icon><SetUp /></el-icon>
+            <template #title>虚拟机管理</template>
+          </el-menu-item>
+          <el-menu-item v-if="userStore.isAdmin" index="/menu-manage">
+            <el-icon><MenuIcon /></el-icon>
+            <template #title>菜单管理</template>
           </el-menu-item>
         </el-menu>
         <div style="text-align: center; padding: 12px 0; cursor: pointer; border-top: 1px solid #e8e8e8;" @click="collapsed = !collapsed">
@@ -70,7 +82,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Folder, Document, Monitor, Fold, Expand, ArrowDown, User as UserIcon } from '@element-plus/icons-vue'
+import { Folder, Document, Monitor, Fold, Expand, ArrowDown, User as UserIcon, HomeFilled, Menu as MenuIcon, SetUp } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import request from '../utils/request'
 
