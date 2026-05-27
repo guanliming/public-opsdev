@@ -237,11 +237,12 @@ function stopStream() {
   }
 }
 
-function onProjectChange(projectId) {
+async function onProjectChange(projectId) {
   if (!projectId) return
   stopStream()
   terminal.clear()
   activeLogFile.value = null
+  await loadTail()
   streaming.value = true
   startStream()
 }
