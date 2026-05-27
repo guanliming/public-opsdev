@@ -317,6 +317,7 @@ async def stream_deploy_log(
 @router.get("/api/logs/tail")
 async def tail_app_logs(
     project_id: int = Query(...),
+    lines: int = Query(500, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -332,7 +333,7 @@ async def tail_app_logs(
         raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
 
     proc = await asyncio.create_subprocess_shell(
-        f"tail -n 500 '{log_path}'",
+        f"tail -n {lines} '{log_path}'",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )

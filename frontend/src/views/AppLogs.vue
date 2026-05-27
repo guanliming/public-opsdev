@@ -5,9 +5,17 @@
       <el-select v-model="selectedProjectId" placeholder="选择项目" style="width: 200px;" @change="onProjectChange">
         <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
       </el-select>
-      <el-input v-model="keyword" placeholder="关键词搜索" style="width: 200px;" clearable @keyup.enter="doSearch" />
+      <el-input v-model="keyword" placeholder="关键词搜索" style="width: 350px;" clearable @keyup.enter="doSearch" />
       <el-button type="primary" @click="doSearch" :disabled="!selectedProjectId || !keyword">搜索</el-button>
-      <el-button @click="loadTail" :disabled="!selectedProjectId">加载最近500行</el-button>
+      <el-select v-model="tailLines" style="width: 150px;">
+        <el-option :value="300" label="最近300行" />
+        <el-option :value="500" label="最近500行" />
+        <el-option :value="1000" label="最近1000行" />
+        <el-option :value="2000" label="最近2000行" />
+        <el-option :value="0" label="自定义行数" />
+      </el-select>
+      <el-input-number v-if="tailLines === 0" v-model="customLines" :min="100" :max="10000" :step="100" style="width: 130px;" />
+      <el-button @click="loadTail" :disabled="!selectedProjectId">加载</el-button>
       <el-switch v-model="streaming" active-text="实时" inactive-text="暂停" @change="toggleStream" :disabled="!selectedProjectId" />
     </div>
     <div ref="terminalContainer" style="height: calc(100vh - 200px); border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden;"></div>
@@ -31,6 +39,8 @@ const projects = ref([])
 const selectedProjectId = ref(null)
 const keyword = ref('')
 const streaming = ref(false)
+const tailLines = ref(500)
+const customLines = ref(500)
 const terminalContainer = ref(null)
 
 let terminal = null
@@ -73,8 +83,9 @@ function escapeRegex(str) {
 
 async function loadTail() {
   if (!selectedProjectId.value) return
+  const lines = tailLines.value === 0 ? customLines.value : tailLines.value
   try {
-    const { data } = await request.get('/logs/tail', { params: { project_id: selectedProjectId.value } })
+    const { data } = await request.get('/logs/tail', { params: { project_id: selectedProjectId.value, lines } })
     terminal.clear()
     terminal.write(data.data)
   } catch (e) {
@@ -140,9 +151,9 @@ function stopStream() {
 function onProjectChange(projectId) {
   if (!projectId) return
   stopStream()
-  streaming.value = false
   terminal.clear()
-  loadTail()
+  streaming.value = true
+  startStream()
 }
 
 onMounted(async () => {
