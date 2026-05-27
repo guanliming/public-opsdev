@@ -52,8 +52,18 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
         log_lines.append(f"项目根目录: {root_dir}\n\n")
 
         # Step 1: Check if code exists
-        git_dir = os.path.join(root_dir, ".git")
-        if not os.path.exists(git_dir):
+        is_git_repo = False
+        if os.path.isdir(root_dir):
+            check_proc = await asyncio.create_subprocess_shell(
+                "git rev-parse --is-inside-work-tree",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=root_dir,
+            )
+            await check_proc.wait()
+            is_git_repo = check_proc.returncode == 0
+
+        if not is_git_repo:
             log_lines.append("--- 未检测到代码，开始 clone ---\n")
             os.makedirs(root_dir, exist_ok=True)
             rc = await run_command(f"git clone {ssh_url} .", root_dir, log_lines, deploy_log_id)
@@ -63,13 +73,13 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
             if rc != 0:
                 raise Exception(f"git checkout 失败，退出码: {rc}")
         else:
-            log_lines.append("--- 检测到已有代码，拉取最新 ---\n")
+            log_lines.append("--- 检测到已有代码，切换分支并拉取最新 ---\n")
             rc = await run_command("git fetch --all", root_dir, log_lines, deploy_log_id)
             if rc != 0:
                 raise Exception(f"git fetch 失败，退出码: {rc}")
             rc = await run_command(f"git checkout {branch}", root_dir, log_lines, deploy_log_id)
             if rc != 0:
-                raise Exception(f"git checkout 失败，退出码: {rc}")
+                raise Exception(f"git checkout {branch} 失败，退出码: {rc}")
             rc = await run_command(f"git pull origin {branch}", root_dir, log_lines, deploy_log_id)
             if rc != 0:
                 raise Exception(f"git pull 失败，退出码: {rc}")
