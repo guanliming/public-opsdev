@@ -11,12 +11,16 @@ from app.routers import auth, projects, deploy
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    # Add log_path column if missing (for existing databases)
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE projects ADD COLUMN log_path VARCHAR(500) NOT NULL DEFAULT '/var/log/'"))
         except Exception:
             pass
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user'"))
+        except Exception:
+            pass
+        await conn.execute(text("UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'user'"))
     yield
 
 

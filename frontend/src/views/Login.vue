@@ -56,7 +56,9 @@ async function handleLogin() {
   loading.value = true
   try {
     const { data } = await request.post('/auth/login', form)
-    userStore.setToken(data.access_token, form.username)
+    userStore.setToken(data.access_token, form.username, '')
+    const { data: me } = await request.get('/auth/me')
+    userStore.setToken(data.access_token, me.username, me.role)
     ElMessage.success('登录成功')
     router.push('/')
   } catch (e) {
