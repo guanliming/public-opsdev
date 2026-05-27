@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import request from '../utils/request'
 
 const logs = ref([])
@@ -65,9 +65,33 @@ const currentLog = reactive({
   log: '',
 })
 
+let pollTimer = null
+
 async function loadLogs() {
   const { data } = await request.get('/deploy-logs')
   logs.value = data
+  startPollingIfNeeded()
+}
+
+function startPollingIfNeeded() {
+  stopPolling()
+  const hasRunning = logs.value.some(l => l.status === 'running')
+  if (hasRunning) {
+    pollTimer = setInterval(async () => {
+      const { data } = await request.get('/deploy-logs')
+      logs.value = data
+      if (!data.some(l => l.status === 'running')) {
+        stopPolling()
+      }
+    }, 3000)
+  }
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 }
 
 async function viewLog(row) {
@@ -98,4 +122,5 @@ function formatTime(timeStr) {
 }
 
 onMounted(loadLogs)
+onUnmounted(stopPolling)
 </script>

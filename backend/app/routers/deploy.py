@@ -101,7 +101,12 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
         if not artifacts:
             raise Exception("未找到打包产物 (*.jar / *.war)")
 
-        artifact = artifacts[0]
+        # Multi-module: prefer artifact whose name contains the project name
+        project_name_lower = project.name.lower()
+        matched = [a for a in artifacts if project_name_lower in os.path.basename(a).lower()]
+        artifact = matched[0] if matched else artifacts[0]
+        if len(artifacts) > 1:
+            log_lines.append(f"检测到多个打包产物，根据项目名称 [{project.name}] 匹配: {os.path.basename(artifact)}\n")
         artifact_name = os.path.basename(artifact)
 
         # deploy_script directory
