@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import SECRET_KEY, ALGORITHM
@@ -217,13 +217,23 @@ async def trigger_deploy(
     return deploy_log
 
 
-@router.get("/api/deploy-logs", response_model=list[DeployLogResponse])
+@router.get("/api/deploy-logs")
 async def list_deploy_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(DeployLog).order_by(DeployLog.id.desc()))
-    return result.scalars().all()
+    total_result = await db.execute(select(func.count()).select_from(DeployLog))
+    total = total_result.scalar()
+    result = await db.execute(
+        select(DeployLog)
+        .order_by(DeployLog.started_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = result.scalars().all()
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/api/deploy-logs/{log_id}", response_model=DeployLogResponse)
@@ -237,6 +247,20 @@ async def get_deploy_log(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在")
     return record
+
+
+@router.delete("/api/deploy-logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_deploy_log(
+    log_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(select(DeployLog).where(DeployLog.id == log_id))
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在")
+    await db.delete(record)
+    await db.commit()
 
 
 @router.get("/api/deploy-logs/{log_id}/stream")

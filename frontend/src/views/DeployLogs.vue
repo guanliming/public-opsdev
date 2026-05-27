@@ -23,12 +23,24 @@
           {{ row.finished_at ? formatTime(row.finished_at) : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="viewLog(row)">查看日志</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
+
+    <el-pagination
+      v-model:current-page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      :page-sizes="[10, 20, 50]"
+      layout="total, sizes, prev, pager, next"
+      @size-change="loadLogs"
+      @current-change="loadLogs"
+      style="margin-top: 16px; justify-content: flex-end;"
+    />
 
     <!-- 日志详情弹窗 -->
     <el-dialog v-model="logDialogVisible" title="部署日志详情" width="700px">
@@ -52,9 +64,13 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../utils/request'
 
 const logs = ref([])
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const logDialogVisible = ref(false)
 const currentLog = reactive({
   project_name: '',
@@ -68,8 +84,9 @@ const currentLog = reactive({
 let pollTimer = null
 
 async function loadLogs() {
-  const { data } = await request.get('/deploy-logs')
-  logs.value = data
+  const { data } = await request.get('/deploy-logs', { params: { page: page.value, page_size: pageSize.value } })
+  logs.value = data.items
+  total.value = data.total
   startPollingIfNeeded()
 }
 
@@ -78,9 +95,10 @@ function startPollingIfNeeded() {
   const hasRunning = logs.value.some(l => l.status === 'running')
   if (hasRunning) {
     pollTimer = setInterval(async () => {
-      const { data } = await request.get('/deploy-logs')
-      logs.value = data
-      if (!data.some(l => l.status === 'running')) {
+      const { data } = await request.get('/deploy-logs', { params: { page: page.value, page_size: pageSize.value } })
+      logs.value = data.items
+      total.value = data.total
+      if (!data.items.some(l => l.status === 'running')) {
         stopPolling()
       }
     }, 3000)
@@ -98,6 +116,13 @@ async function viewLog(row) {
   const { data } = await request.get(`/deploy-logs/${row.id}`)
   Object.assign(currentLog, data)
   logDialogVisible.value = true
+}
+
+async function handleDelete(row) {
+  await ElMessageBox.confirm('确定删除该部署记录？', '确认', { type: 'warning' })
+  await request.delete(`/deploy-logs/${row.id}`)
+  ElMessage.success('删除成功')
+  await loadLogs()
 }
 
 function statusType(status) {

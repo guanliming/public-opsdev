@@ -11,10 +11,11 @@
       <el-table-column prop="branch" label="部署分支" width="120" />
       <el-table-column prop="root_dir" label="项目根目录" width="140" />
       <el-table-column prop="deploy_script" label="部署脚本" width="160" />
-      <el-table-column prop="log_path" label="日志路径" width="140" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column prop="log_path" label="应用日志路径" width="160" />
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="success" @click="handleDeploy(row)">部署</el-button>
+          <el-button size="small" type="warning" @click="goToLogs(row)">日志</el-button>
           <el-button size="small" @click="openDialog(row)">编辑</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
@@ -38,8 +39,8 @@
         <el-form-item label="部署脚本" prop="deploy_script">
           <el-input v-model="form.deploy_script" placeholder="./deploy.sh" />
         </el-form-item>
-        <el-form-item label="日志路径" prop="log_path">
-          <el-input v-model="form.log_path" placeholder="/var/log/" />
+        <el-form-item label="应用日志路径" prop="log_path">
+          <el-input v-model="form.log_path" placeholder="/var/log/app.log" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -64,10 +65,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, nextTick, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../utils/request'
 import { useUserStore } from '../stores/user'
 
+const router = useRouter()
 const userStore = useUserStore()
 const projects = ref([])
 const dialogVisible = ref(false)
@@ -154,6 +157,10 @@ async function handleDelete(row) {
   await request.delete(`/projects/${row.id}`)
   ElMessage.success('删除成功')
   await loadProjects()
+}
+
+function goToLogs(row) {
+  router.push({ path: '/app-logs', query: { project: row.id } })
 }
 
 async function handleDeploy(row) {

@@ -14,6 +14,11 @@ const routes = [
     redirect: '/projects',
     children: [
       {
+        path: 'app-logs',
+        name: 'AppLogs',
+        component: () => import('../views/AppLogs.vue'),
+      },
+      {
         path: 'projects',
         name: 'Projects',
         component: () => import('../views/Projects.vue'),

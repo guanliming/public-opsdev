@@ -10,6 +10,10 @@
     <el-container>
       <el-aside width="200px" style="background: #fff; border-right: 1px solid #e8e8e8;">
         <el-menu :default-active="route.path" router>
+          <el-menu-item index="/app-logs">
+            <el-icon><Monitor /></el-icon>
+            <span>应用日志</span>
+          </el-menu-item>
           <el-menu-item index="/projects">
             <el-icon><Folder /></el-icon>
             <span>项目配置</span>
@@ -29,7 +33,7 @@
 
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
-import { Folder, Document } from '@element-plus/icons-vue'
+import { Folder, Document, Monitor } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
