@@ -74,7 +74,7 @@ function escapeRegex(str) {
 async function loadTail() {
   if (!selectedProjectId.value) return
   try {
-    const { data } = await request.get('/app-logs/tail', { params: { project_id: selectedProjectId.value } })
+    const { data } = await request.get('/logs/tail', { params: { project_id: selectedProjectId.value } })
     terminal.clear()
     terminal.write(data.data)
   } catch (e) {
@@ -85,7 +85,7 @@ async function loadTail() {
 async function doSearch() {
   if (!selectedProjectId.value || !keyword.value) return
   try {
-    const { data } = await request.get('/app-logs/search', {
+    const { data } = await request.get('/logs/search', {
       params: { project_id: selectedProjectId.value, keyword: keyword.value }
     })
     terminal.clear()
@@ -116,7 +116,7 @@ function startStream() {
   stopStream()
 
   const token = userStore.token
-  const url = `/api/app-logs/stream?token=${token}&project_id=${selectedProjectId.value}`
+  const url = `/api/logs/stream?token=${token}&project_id=${selectedProjectId.value}`
   eventSource = new EventSource(url)
 
   eventSource.onmessage = (event) => {

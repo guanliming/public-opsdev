@@ -84,10 +84,14 @@ const currentLog = reactive({
 let pollTimer = null
 
 async function loadLogs() {
-  const { data } = await request.get('/deploy-logs', { params: { page: page.value, page_size: pageSize.value } })
-  logs.value = data.items
-  total.value = data.total
-  startPollingIfNeeded()
+  try {
+    const { data } = await request.get('/deploy-logs', { params: { page: page.value, page_size: pageSize.value } })
+    logs.value = data.items || []
+    total.value = data.total || 0
+    startPollingIfNeeded()
+  } catch (e) {
+    console.error('加载部署日志失败', e)
+  }
 }
 
 function startPollingIfNeeded() {
