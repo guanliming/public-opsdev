@@ -1,8 +1,10 @@
 import asyncio
 import os
 import glob as glob_mod
+import shlex
 import shutil
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -19,6 +21,32 @@ from app.auth import get_current_user
 router = APIRouter(tags=["deploy"])
 
 deploy_logs_cache: dict[int, list[str]] = {}
+
+
+def get_script_dir(project: Project) -> str:
+    deploy_script = project.deploy_script
+    root_dir = project.root_dir
+    if os.path.isabs(deploy_script):
+        return os.path.dirname(deploy_script)
+    return root_dir
+
+
+def get_allowed_log_dirs(project: Project) -> list[str]:
+    script_dir = get_script_dir(project)
+    dirs = [os.path.realpath(script_dir)]
+    logs_sub = os.path.join(script_dir, "logs")
+    if os.path.isdir(logs_sub):
+        dirs.append(os.path.realpath(logs_sub))
+    return dirs
+
+
+def validate_log_file_access(project: Project, file_path: str):
+    real_path = os.path.realpath(file_path)
+    allowed = get_allowed_log_dirs(project)
+    if not any(real_path.startswith(d + os.sep) or real_path == d for d in allowed):
+        raise HTTPException(status_code=403, detail="无权访问该日志文件")
+    if not os.path.isfile(real_path):
+        raise HTTPException(status_code=400, detail=f"日志文件不存在: {file_path}")
 
 
 async def run_command(cmd: str, cwd: str, log_lines: list[str], deploy_log_id: int):
@@ -314,10 +342,9 @@ async def stream_deploy_log(
 
 # --- Application Logs Endpoints ---
 
-@router.get("/api/logs/tail")
-async def tail_app_logs(
+@router.get("/api/logs/files")
+async def list_log_files(
     project_id: int = Query(...),
-    lines: int = Query(500, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -325,15 +352,63 @@ async def tail_app_logs(
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
-    if not project.log_path:
-        raise HTTPException(status_code=400, detail="日志路径未配置")
 
-    log_path = project.log_path
-    if not os.path.isfile(log_path):
-        raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
+    script_dir = get_script_dir(project)
+    scan_dirs = [script_dir]
+    logs_sub = os.path.join(script_dir, "logs")
+    if os.path.isdir(logs_sub):
+        scan_dirs.append(logs_sub)
+
+    files = []
+    for d in scan_dirs:
+        for pattern in ("*.log", "*.gz"):
+            for fpath in glob_mod.glob(os.path.join(d, pattern)):
+                if not os.path.isfile(fpath):
+                    continue
+                stat = os.stat(fpath)
+                ftype = "gz" if fpath.endswith(".gz") else "log"
+                files.append({
+                    "name": os.path.basename(fpath),
+                    "path": fpath,
+                    "type": ftype,
+                    "size": stat.st_size,
+                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                })
+
+    files.sort(key=lambda x: x["mtime"], reverse=True)
+    return {"files": files, "base_dir": script_dir}
+
+@router.get("/api/logs/tail")
+async def tail_app_logs(
+    project_id: int = Query(...),
+    lines: int = Query(500, ge=1, le=10000),
+    file_path: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
+
+    if file_path:
+        validate_log_file_access(project, file_path)
+        log_path = file_path
+    else:
+        if not project.log_path:
+            raise HTTPException(status_code=400, detail="日志路径未配置")
+        log_path = project.log_path
+        if not os.path.isfile(log_path):
+            raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
+
+    safe_path = shlex.quote(log_path)
+    if log_path.endswith(".gz"):
+        cmd = f"zcat {safe_path} | tail -n {lines}"
+    else:
+        cmd = f"tail -n {lines} {safe_path}"
 
     proc = await asyncio.create_subprocess_shell(
-        f"tail -n {lines} '{log_path}'",
+        cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
@@ -345,6 +420,7 @@ async def tail_app_logs(
 async def search_app_logs(
     project_id: int = Query(...),
     keyword: str = Query(..., min_length=1),
+    file_path: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -352,16 +428,26 @@ async def search_app_logs(
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
-    if not project.log_path:
-        raise HTTPException(status_code=400, detail="日志路径未配置")
 
-    log_path = project.log_path
-    if not os.path.isfile(log_path):
-        raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
+    if file_path:
+        validate_log_file_access(project, file_path)
+        log_path = file_path
+    else:
+        if not project.log_path:
+            raise HTTPException(status_code=400, detail="日志路径未配置")
+        log_path = project.log_path
+        if not os.path.isfile(log_path):
+            raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
 
     safe_keyword = keyword.replace("'", "'\\''")
+    safe_path = shlex.quote(log_path)
+    if log_path.endswith(".gz"):
+        cmd = f"zgrep --color=never -n '{safe_keyword}' {safe_path} | tail -n 500"
+    else:
+        cmd = f"grep --color=never -n '{safe_keyword}' {safe_path} | tail -n 500"
+
     proc = await asyncio.create_subprocess_shell(
-        f"grep --color=never -n '{safe_keyword}' '{log_path}' | tail -n 500",
+        cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
@@ -373,6 +459,7 @@ async def search_app_logs(
 async def stream_app_logs(
     project_id: int = Query(...),
     token: str = Query(...),
+    file_path: Optional[str] = Query(None),
 ):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -388,16 +475,24 @@ async def stream_app_logs(
 
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
-    if not project.log_path:
-        raise HTTPException(status_code=400, detail="日志路径未配置")
 
-    log_path = project.log_path
-    if not os.path.isfile(log_path):
-        raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
+    if file_path:
+        if file_path.endswith(".gz"):
+            raise HTTPException(status_code=400, detail="gz 文件不支持实时流")
+        validate_log_file_access(project, file_path)
+        log_path = file_path
+    else:
+        if not project.log_path:
+            raise HTTPException(status_code=400, detail="日志路径未配置")
+        log_path = project.log_path
+        if not os.path.isfile(log_path):
+            raise HTTPException(status_code=400, detail=f"日志文件不存在: {log_path}")
+
+    safe_path = shlex.quote(log_path)
 
     async def event_generator():
         process = await asyncio.create_subprocess_shell(
-            f"tail -f -n 0 '{log_path}'",
+            f"tail -f -n 0 {safe_path}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
