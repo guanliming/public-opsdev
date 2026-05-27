@@ -28,14 +28,50 @@ async def run_command(cmd: str, cwd: str, log_lines: list[str], deploy_log_id: i
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
         cwd=cwd,
+        start_new_session=True,
     )
+
+    # Concurrently wait for process exit and read stdout.
+    # After the shell exits, grandchild daemons (e.g. Java app started with nohup/&)
+    # may keep the pipe open. We stop reading shortly after the process exits.
+    process_exited = asyncio.Event()
+
+    async def wait_for_exit():
+        await process.wait()
+        process_exited.set()
+
+    exit_task = asyncio.ensure_future(wait_for_exit())
+
     while True:
-        line = await process.stdout.readline()
+        read_coro = process.stdout.readline()
+        if process_exited.is_set():
+            try:
+                line = await asyncio.wait_for(read_coro, timeout=3)
+            except asyncio.TimeoutError:
+                break
+        else:
+            # Wait for either a line of output or process exit
+            read_task = asyncio.ensure_future(read_coro)
+            done, _ = await asyncio.wait(
+                [read_task, exit_task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if read_task in done:
+                line = read_task.result()
+            else:
+                # Process exited while we were waiting for output; drain briefly
+                try:
+                    line = await asyncio.wait_for(read_task, timeout=3)
+                except asyncio.TimeoutError:
+                    break
+
         if not line:
             break
         decoded = line.decode("utf-8", errors="replace")
         log_lines.append(decoded)
-    await process.wait()
+
+    if not exit_task.done():
+        await exit_task
     return process.returncode
 
 
