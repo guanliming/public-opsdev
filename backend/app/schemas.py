@@ -72,3 +72,10 @@ class DeployLogResponse(BaseModel):
     finished_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class DeployLogPageResponse(BaseModel):
+    items: list[DeployLogResponse]
+    total: int
+    page: int
+    page_size: int

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import SECRET_KEY, ALGORITHM
 from app.database import get_db, async_session
 from app.models import User, Project, DeployLog
-from app.schemas import DeployLogResponse
+from app.schemas import DeployLogResponse, DeployLogPageResponse
 from app.auth import get_current_user
 
 router = APIRouter(tags=["deploy"])
@@ -217,7 +217,7 @@ async def trigger_deploy(
     return deploy_log
 
 
-@router.get("/api/deploy-logs")
+@router.get("/api/deploy-logs", response_model=DeployLogPageResponse)
 async def list_deploy_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),

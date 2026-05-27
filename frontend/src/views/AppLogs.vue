@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Terminal } from '@xterm/xterm'
@@ -35,7 +35,7 @@ const terminalContainer = ref(null)
 
 let terminal = null
 let fitAddon = null
-let ws = null
+let eventSource = null
 let resizeObserver = null
 
 async function loadProjects() {
@@ -67,92 +67,82 @@ function initTerminal() {
   resizeObserver.observe(terminalContainer.value)
 }
 
-function connectWs(projectId) {
-  disconnectWs()
-
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.host
-  const token = userStore.token
-  const url = `${protocol}//${host}/api/ws/logs?token=${token}&project_id=${projectId}`
-
-  ws = new WebSocket(url)
-
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data)
-    if (msg.type === 'bulk') {
-      terminal.clear()
-      terminal.write(msg.data)
-    } else if (msg.type === 'line') {
-      terminal.write(msg.data)
-    } else if (msg.type === 'search_result') {
-      terminal.clear()
-      if (!msg.data) {
-        terminal.writeln('\x1b[33m未找到匹配内容\x1b[0m')
-      } else {
-        const highlighted = msg.data.replace(
-          new RegExp(escapeRegex(msg.keyword), 'gi'),
-          match => `\x1b[43m\x1b[30m${match}\x1b[0m`
-        )
-        terminal.write(highlighted)
-      }
-    } else if (msg.type === 'error') {
-      ElMessage.error(msg.data)
-    }
-  }
-
-  ws.onclose = (event) => {
-    if (event.code === 4001) {
-      ElMessage.error('认证失败，请重新登录')
-    }
-  }
-
-  ws.onerror = () => {
-    ElMessage.error('WebSocket 连接失败')
-  }
-}
-
-function disconnectWs() {
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-  streaming.value = false
-}
-
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function sendWsMessage(msg) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(msg))
+async function loadTail() {
+  if (!selectedProjectId.value) return
+  try {
+    const { data } = await request.get('/app-logs/tail', { params: { project_id: selectedProjectId.value } })
+    terminal.clear()
+    terminal.write(data.data)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '加载日志失败')
+  }
+}
+
+async function doSearch() {
+  if (!selectedProjectId.value || !keyword.value) return
+  try {
+    const { data } = await request.get('/app-logs/search', {
+      params: { project_id: selectedProjectId.value, keyword: keyword.value }
+    })
+    terminal.clear()
+    if (!data.data) {
+      terminal.writeln('\x1b[33m未找到匹配内容\x1b[0m')
+    } else {
+      const highlighted = data.data.replace(
+        new RegExp(escapeRegex(data.keyword), 'gi'),
+        match => `\x1b[43m\x1b[30m${match}\x1b[0m`
+      )
+      terminal.write(highlighted)
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '搜索失败')
+  }
+}
+
+function toggleStream(val) {
+  if (val) {
+    startStream()
   } else {
-    ElMessage.warning('连接未就绪，请先选择项目')
+    stopStream()
+  }
+}
+
+function startStream() {
+  if (!selectedProjectId.value) return
+  stopStream()
+
+  const token = userStore.token
+  const url = `/api/app-logs/stream?token=${token}&project_id=${selectedProjectId.value}`
+  eventSource = new EventSource(url)
+
+  eventSource.onmessage = (event) => {
+    terminal.writeln(event.data)
+  }
+
+  eventSource.onerror = () => {
+    streaming.value = false
+    eventSource.close()
+    eventSource = null
+  }
+}
+
+function stopStream() {
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
   }
 }
 
 function onProjectChange(projectId) {
   if (!projectId) return
+  stopStream()
+  streaming.value = false
   terminal.clear()
-  connectWs(projectId)
-  setTimeout(() => loadTail(), 300)
-}
-
-function loadTail() {
-  sendWsMessage({ action: 'tail' })
-}
-
-function doSearch() {
-  if (!keyword.value) return
-  sendWsMessage({ action: 'search', keyword: keyword.value })
-}
-
-function toggleStream(val) {
-  if (val) {
-    sendWsMessage({ action: 'stream_start' })
-  } else {
-    sendWsMessage({ action: 'stream_stop' })
-  }
+  loadTail()
 }
 
 onMounted(async () => {
@@ -172,7 +162,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  disconnectWs()
+  stopStream()
   if (resizeObserver) {
     resizeObserver.disconnect()
   }
