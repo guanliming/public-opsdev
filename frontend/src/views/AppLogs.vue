@@ -6,7 +6,7 @@
         <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
       </el-select>
       <el-input v-model="keyword" placeholder="关键词搜索" style="width: 350px;" clearable @keyup.enter="doSearch" />
-      <el-button type="primary" @click="doSearch" :disabled="!selectedProjectId || !keyword">搜索</el-button>
+      <el-button type="primary" @click="doSearch" :disabled="!selectedProjectId">搜索</el-button>
       <el-select v-model="tailLines" style="width: 150px;">
         <el-option :value="300" label="最近300行" />
         <el-option :value="500" label="最近500行" />
@@ -94,7 +94,11 @@ async function loadTail() {
 }
 
 async function doSearch() {
-  if (!selectedProjectId.value || !keyword.value) return
+  if (!selectedProjectId.value) return
+  if (!keyword.value) {
+    loadTail()
+    return
+  }
   try {
     const { data } = await request.get('/logs/search', {
       params: { project_id: selectedProjectId.value, keyword: keyword.value }
@@ -169,6 +173,10 @@ onMounted(async () => {
       await nextTick()
       onProjectChange(id)
     }
+  } else if (projects.value.length > 0) {
+    selectedProjectId.value = projects.value[0].id
+    await nextTick()
+    onProjectChange(projects.value[0].id)
   }
 })
 
