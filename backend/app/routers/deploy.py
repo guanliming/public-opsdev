@@ -92,10 +92,12 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
 
         # Step 3: Find and move artifact to deploy_script directory
         log_lines.append("\n--- 移动打包文件 ---\n")
-        target_dir = os.path.join(root_dir, "target")
-        artifacts = glob_mod.glob(os.path.join(target_dir, "*.jar")) + glob_mod.glob(os.path.join(target_dir, "*.war"))
-        # Filter out sources/javadoc jars
-        artifacts = [a for a in artifacts if not a.endswith("-sources.jar") and not a.endswith("-javadoc.jar")]
+        artifacts = glob_mod.glob(os.path.join(root_dir, "**/target/*.jar"), recursive=True) + \
+                    glob_mod.glob(os.path.join(root_dir, "**/target/*.war"), recursive=True)
+        artifacts = [a for a in artifacts if not a.endswith("-sources.jar")
+                     and not a.endswith("-javadoc.jar")
+                     and not a.endswith("-tests.jar")
+                     and "original-" not in os.path.basename(a)]
         if not artifacts:
             raise Exception("未找到打包产物 (*.jar / *.war)")
 
