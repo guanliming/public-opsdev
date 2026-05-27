@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -36,11 +38,11 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    name: str | None = None
-    ssh_url: str | None = None
-    branch: str | None = None
-    root_dir: str | None = None
-    deploy_script: str | None = None
+    name: Optional[str] = None
+    ssh_url: Optional[str] = None
+    branch: Optional[str] = None
+    root_dir: Optional[str] = None
+    deploy_script: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
