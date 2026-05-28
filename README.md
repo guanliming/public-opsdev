@@ -1,4 +1,4 @@
-# OpsDevOps
+# DevOps
 
 公司定制化 DevOps 系统，减少开发人员直接登录服务器操作。
 

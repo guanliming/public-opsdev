@@ -1,7 +1,7 @@
 <template>
   <el-container style="height: 100vh">
     <el-header style="display: flex; align-items: center; justify-content: space-between; background: #001529; color: #fff;">
-      <h3 style="margin: 0; color: #fff;">OpsDevOps</h3>
+      <h3 style="margin: 0; color: #fff;">DevOps</h3>
       <div style="display: flex; align-items: center; gap: 16px;">
         <el-dropdown @command="handleCommand">
           <span style="color: #fff; cursor: pointer; display: flex; align-items: center; gap: 4px;">

@@ -2,7 +2,7 @@
   <div class="login-container">
     <el-card class="login-card">
       <template #header>
-        <h2 style="margin: 0; text-align: center;">OpsDevOps</h2>
+        <h2 style="margin: 0; text-align: center;">DevOps</h2>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="username">
