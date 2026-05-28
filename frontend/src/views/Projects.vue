@@ -12,6 +12,7 @@
       <el-table-column prop="root_dir" label="项目根目录" width="140" />
       <el-table-column prop="deploy_script" label="部署脚本" width="160" />
       <el-table-column prop="log_path" label="应用日志路径" width="160" />
+      <el-table-column prop="env_info" label="环境信息" min-width="200" show-overflow-tooltip />
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="success" @click="handleDeploy(row)">部署</el-button>
@@ -41,6 +42,9 @@
         </el-form-item>
         <el-form-item label="应用日志路径" prop="log_path">
           <el-input v-model="form.log_path" placeholder="/var/log/app.log" />
+        </el-form-item>
+        <el-form-item label="环境信息" prop="env_info">
+          <el-input v-model="form.env_info" type="textarea" :rows="3" placeholder="如：Go 1.21 / Gin / PostgreSQL 15 / Redis 7 / Ubuntu 22.04" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -106,6 +110,7 @@ const form = reactive({
   root_dir: '/repo/',
   deploy_script: './deploy.sh',
   log_path: '/var/log/',
+  env_info: '',
 })
 
 const rules = {
@@ -123,11 +128,11 @@ function openDialog(row) {
   if (row) {
     isEdit.value = true
     editingId.value = row.id
-    Object.assign(form, { name: row.name, ssh_url: row.ssh_url, branch: row.branch, root_dir: row.root_dir, deploy_script: row.deploy_script, log_path: row.log_path })
+    Object.assign(form, { name: row.name, ssh_url: row.ssh_url, branch: row.branch, root_dir: row.root_dir, deploy_script: row.deploy_script, log_path: row.log_path, env_info: row.env_info || '' })
   } else {
     isEdit.value = false
     editingId.value = null
-    Object.assign(form, { name: '', ssh_url: '', branch: 'main', root_dir: '/repo/', deploy_script: './deploy.sh', log_path: '/var/log/' })
+    Object.assign(form, { name: '', ssh_url: '', branch: 'main', root_dir: '/repo/', deploy_script: './deploy.sh', log_path: '/var/log/', env_info: '' })
   }
   dialogVisible.value = true
 }

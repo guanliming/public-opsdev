@@ -23,9 +23,10 @@
           {{ row.finished_at ? formatTime(row.finished_at) : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="viewLog(row)">查看日志</el-button>
+          <el-button size="small" type="primary" @click="diagnoseLog(row)" v-if="row.status === 'failed'">AI 诊断</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -63,9 +64,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, inject, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../utils/request'
+
+const openDiagnosis = inject('openDiagnosis')
 
 const logs = ref([])
 const page = ref(1)
@@ -120,6 +123,13 @@ async function viewLog(row) {
   const { data } = await request.get(`/deploy-logs/${row.id}`)
   Object.assign(currentLog, data)
   logDialogVisible.value = true
+}
+
+async function diagnoseLog(row) {
+  const { data } = await request.get(`/deploy-logs/${row.id}`)
+  if (openDiagnosis && data.log) {
+    openDiagnosis(null, data.log, `部署失败 - 项目: ${data.project_name}, 部署人: ${data.deployer}`)
+  }
 }
 
 async function handleDelete(row) {

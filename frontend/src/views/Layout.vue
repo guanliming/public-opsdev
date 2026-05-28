@@ -75,21 +75,47 @@
         <el-button type="primary" :loading="passwordLoading" @click="handleChangePassword">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- AI Diagnosis -->
+    <AiFloatingBall ref="floatingBallRef" @open="diagnosisVisible = true" />
+    <AiDiagnosisDrawer ref="diagnosisDrawerRef" v-model="diagnosisVisible" :projects="allProjects" />
   </el-container>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, provide, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Folder, Document, Monitor, Fold, Expand, ArrowDown, User as UserIcon, HomeFilled, Menu as MenuIcon, SetUp } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import request from '../utils/request'
+import AiFloatingBall from '../components/AiFloatingBall.vue'
+import AiDiagnosisDrawer from '../components/AiDiagnosisDrawer.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const collapsed = ref(false)
+
+const diagnosisVisible = ref(false)
+const floatingBallRef = ref(null)
+const diagnosisDrawerRef = ref(null)
+const allProjects = ref([])
+
+function openDiagnosis(projectId, errorLog, extraContext) {
+  diagnosisDrawerRef.value?.open(projectId, errorLog, extraContext)
+}
+
+provide('openDiagnosis', openDiagnosis)
+
+async function loadAllProjects() {
+  try {
+    const { data } = await request.get('/projects')
+    allProjects.value = data
+  } catch {}
+}
+
+onMounted(loadAllProjects)
 
 const passwordDialogVisible = ref(false)
 const passwordLoading = ref(false)

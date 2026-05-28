@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 
 from app.database import init_db, engine
-from app.routers import auth, projects, deploy, portal, ssh
+from app.routers import auth, projects, deploy, portal, ssh, agent
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.include_router(projects.router)
 app.include_router(deploy.router)
 app.include_router(portal.router)
 app.include_router(ssh.router)
+app.include_router(agent.router)
 
 
 @app.get("/api/health")

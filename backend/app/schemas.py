@@ -49,6 +49,7 @@ class ProjectCreate(BaseModel):
     root_dir: str = "/repo/"
     deploy_script: str = "./deploy.sh"
     log_path: str = "/var/log/"
+    env_info: str = ""
 
 
 class ProjectUpdate(BaseModel):
@@ -58,6 +59,7 @@ class ProjectUpdate(BaseModel):
     root_dir: Optional[str] = None
     deploy_script: Optional[str] = None
     log_path: Optional[str] = None
+    env_info: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
@@ -68,6 +70,7 @@ class ProjectResponse(BaseModel):
     root_dir: str
     deploy_script: str
     log_path: str
+    env_info: str
     created_at: datetime
     updated_at: datetime
 

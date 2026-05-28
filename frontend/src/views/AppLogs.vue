@@ -57,14 +57,23 @@
         当前: {{ activeLogFile.name }}
       </span>
     </div>
-    <div ref="terminalContainer" style="height: calc(100vh - 200px); border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden;"></div>
+    <div ref="terminalContainer" style="height: calc(100vh - 200px); border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden; position: relative;">
+      <transition name="fade">
+        <div v-if="selectedText" class="selection-diagnose-btn" @click="diagnoseSelected">
+          <el-button type="primary" size="small" round>
+            <el-icon style="margin-right: 4px;"><MagicStick /></el-icon>AI 诊断选中内容
+          </el-button>
+        </div>
+      </transition>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, inject, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { MagicStick } from '@element-plus/icons-vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -73,6 +82,7 @@ import { useUserStore } from '../stores/user'
 
 const route = useRoute()
 const userStore = useUserStore()
+const openDiagnosis = inject('openDiagnosis')
 
 const projects = ref([])
 const selectedProjectId = ref(null)
@@ -81,6 +91,7 @@ const streaming = ref(false)
 const tailLines = ref(500)
 const customLines = ref(500)
 const terminalContainer = ref(null)
+const selectedText = ref('')
 
 const activeLogFile = ref(null)
 const logFiles = ref([])
@@ -91,6 +102,7 @@ let terminal = null
 let fitAddon = null
 let eventSource = null
 let resizeObserver = null
+let selectionDisposable = null
 
 async function loadProjects() {
   const { data } = await request.get('/projects')
@@ -119,6 +131,16 @@ function initTerminal() {
     fitAddon.fit()
   })
   resizeObserver.observe(terminalContainer.value)
+
+  selectionDisposable = terminal.onSelectionChange(() => {
+    selectedText.value = terminal.getSelection() || ''
+  })
+}
+
+function diagnoseSelected() {
+  if (selectedText.value && openDiagnosis) {
+    openDiagnosis(selectedProjectId.value, selectedText.value, '')
+  }
 }
 
 function escapeRegex(str) {
@@ -269,6 +291,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopStream()
+  if (selectionDisposable) {
+    selectionDisposable.dispose()
+  }
   if (resizeObserver) {
     resizeObserver.disconnect()
   }
@@ -277,3 +302,19 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.selection-diagnose-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -25,6 +25,7 @@ class Project(Base):
     root_dir = Column(String(500), nullable=False, default="/repo/")
     deploy_script = Column(String(500), nullable=False, default="./deploy.sh")
     log_path = Column(String(500), nullable=False, default="/var/log/")
+    env_info = Column(String(2000), nullable=False, default="")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
