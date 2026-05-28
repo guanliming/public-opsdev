@@ -148,43 +148,56 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
             if rc != 0:
                 raise Exception(f"git pull 失败，退出码: {rc}")
 
-        # Step 2: Maven package
-        log_lines.append("\n--- 开始打包 ---\n")
-        rc = await run_command("mvn clean package -Dmaven.test.skip=true", root_dir, log_lines, deploy_log_id)
-        if rc != 0:
-            raise Exception(f"mvn package 失败，退出码: {rc}")
-
-        # Step 3: Find and move artifact to deploy_script directory
-        log_lines.append("\n--- 移动打包文件 ---\n")
-        artifacts = glob_mod.glob(os.path.join(root_dir, "**/target/*.jar"), recursive=True) + \
-                    glob_mod.glob(os.path.join(root_dir, "**/target/*.war"), recursive=True)
-        artifacts = [a for a in artifacts if not a.endswith("-sources.jar")
-                     and not a.endswith("-javadoc.jar")
-                     and not a.endswith("-tests.jar")
-                     and "original-" not in os.path.basename(a)]
-        if not artifacts:
-            raise Exception("未找到打包产物 (*.jar / *.war)")
-
-        # Multi-module: prefer artifact whose name contains the project name
-        project_name_lower = project.name.lower()
-        matched = [a for a in artifacts if project_name_lower in os.path.basename(a).lower()]
-        artifact = matched[0] if matched else artifacts[0]
-        if len(artifacts) > 1:
-            log_lines.append(f"检测到多个打包产物，根据项目名称 [{project.name}] 匹配: {os.path.basename(artifact)}\n")
-        artifact_name = os.path.basename(artifact)
-
-        # deploy_script directory
-        if os.path.isabs(deploy_script):
-            dest_dir = os.path.dirname(deploy_script)
+        # Step 2: Build
+        log_lines.append("\n--- 开始构建 ---\n")
+        if project.build_type == "docker" and project.build_script:
+            build_script_path = project.build_script
+            if os.path.isabs(build_script_path):
+                build_cmd = build_script_path
+                build_cwd = os.path.dirname(build_script_path)
+            else:
+                build_cmd = build_script_path
+                build_cwd = root_dir
+            log_lines.append(f"构建类型: docker，执行构建脚本: {build_script_path}\n")
+            rc = await run_command(build_cmd, build_cwd, log_lines, deploy_log_id)
+            if rc != 0:
+                raise Exception(f"构建脚本执行失败，退出码: {rc}")
         else:
-            dest_dir = os.path.dirname(os.path.join(root_dir, deploy_script))
-        if not dest_dir:
-            dest_dir = root_dir
+            # jar: Maven package
+            log_lines.append("构建类型: jar，执行 Maven 打包\n")
+            rc = await run_command("mvn clean package -Dmaven.test.skip=true", root_dir, log_lines, deploy_log_id)
+            if rc != 0:
+                raise Exception(f"mvn package 失败，退出码: {rc}")
 
-        dest_path = os.path.join(dest_dir, artifact_name)
-        log_lines.append(f"移动 {artifact} -> {dest_path}\n")
-        os.makedirs(dest_dir, exist_ok=True)
-        shutil.move(artifact, dest_path)
+            # Find and move artifact to deploy_script directory
+            log_lines.append("\n--- 移动打包文件 ---\n")
+            artifacts = glob_mod.glob(os.path.join(root_dir, "**/target/*.jar"), recursive=True) + \
+                        glob_mod.glob(os.path.join(root_dir, "**/target/*.war"), recursive=True)
+            artifacts = [a for a in artifacts if not a.endswith("-sources.jar")
+                         and not a.endswith("-javadoc.jar")
+                         and not a.endswith("-tests.jar")
+                         and "original-" not in os.path.basename(a)]
+            if not artifacts:
+                raise Exception("未找到打包产物 (*.jar / *.war)")
+
+            project_name_lower = project.name.lower()
+            matched = [a for a in artifacts if project_name_lower in os.path.basename(a).lower()]
+            artifact = matched[0] if matched else artifacts[0]
+            if len(artifacts) > 1:
+                log_lines.append(f"检测到多个打包产物，根据项目名称 [{project.name}] 匹配: {os.path.basename(artifact)}\n")
+            artifact_name = os.path.basename(artifact)
+
+            if os.path.isabs(deploy_script):
+                dest_dir = os.path.dirname(deploy_script)
+            else:
+                dest_dir = os.path.dirname(os.path.join(root_dir, deploy_script))
+            if not dest_dir:
+                dest_dir = root_dir
+
+            dest_path = os.path.join(dest_dir, artifact_name)
+            log_lines.append(f"移动 {artifact} -> {dest_path}\n")
+            os.makedirs(dest_dir, exist_ok=True)
+            shutil.move(artifact, dest_path)
 
         # Step 4: Execute deploy script
         log_lines.append("\n--- 执行部署脚本 ---\n")

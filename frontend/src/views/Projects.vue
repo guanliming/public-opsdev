@@ -11,6 +11,13 @@
       <el-table-column prop="branch" label="部署分支" width="120" />
       <el-table-column prop="root_dir" label="项目根目录" width="140" />
       <el-table-column prop="deploy_script" label="部署脚本" width="160" />
+      <el-table-column prop="build_type" label="打包类型" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.build_type === 'docker' ? 'warning' : 'success'" size="small">
+            {{ row.build_type === 'docker' ? 'Docker' : 'JAR' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="log_path" label="应用日志路径" width="160" />
       <el-table-column prop="env_info" label="环境信息" min-width="200" show-overflow-tooltip />
       <el-table-column label="操作" width="280" fixed="right">
@@ -23,7 +30,7 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新增项目'" width="500px">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新增项目'" width="750px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="项目名称" prop="name">
           <el-input v-model="form.name" placeholder="如：my-app" />
@@ -39,6 +46,15 @@
         </el-form-item>
         <el-form-item label="部署脚本" prop="deploy_script">
           <el-input v-model="form.deploy_script" placeholder="./deploy.sh" />
+        </el-form-item>
+        <el-form-item label="打包类型" prop="build_type">
+          <el-radio-group v-model="form.build_type">
+            <el-radio value="jar">JAR (Maven)</el-radio>
+            <el-radio value="docker">Docker (自定义构建脚本)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="form.build_type === 'docker'" label="构建脚本" prop="build_script">
+          <el-input v-model="form.build_script" placeholder="/opt/scripts/build.sh" />
         </el-form-item>
         <el-form-item label="应用日志路径" prop="log_path">
           <el-input v-model="form.log_path" placeholder="/var/log/app.log" />
@@ -111,6 +127,8 @@ const form = reactive({
   deploy_script: './deploy.sh',
   log_path: '/var/log/',
   env_info: '',
+  build_type: 'jar',
+  build_script: '',
 })
 
 const rules = {
@@ -128,11 +146,11 @@ function openDialog(row) {
   if (row) {
     isEdit.value = true
     editingId.value = row.id
-    Object.assign(form, { name: row.name, ssh_url: row.ssh_url, branch: row.branch, root_dir: row.root_dir, deploy_script: row.deploy_script, log_path: row.log_path, env_info: row.env_info || '' })
+    Object.assign(form, { name: row.name, ssh_url: row.ssh_url, branch: row.branch, root_dir: row.root_dir, deploy_script: row.deploy_script, log_path: row.log_path, env_info: row.env_info || '', build_type: row.build_type || 'jar', build_script: row.build_script || '' })
   } else {
     isEdit.value = false
     editingId.value = null
-    Object.assign(form, { name: '', ssh_url: '', branch: 'main', root_dir: '/repo/', deploy_script: './deploy.sh', log_path: '/var/log/', env_info: '' })
+    Object.assign(form, { name: '', ssh_url: '', branch: 'main', root_dir: '/repo/', deploy_script: './deploy.sh', log_path: '/var/log/', env_info: '', build_type: 'jar', build_script: '' })
   }
   dialogVisible.value = true
 }

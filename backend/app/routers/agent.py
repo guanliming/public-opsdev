@@ -32,6 +32,9 @@ async def analyze_error(
         "error_log": req.error_log,
     }
 
+    if req.extra_context:
+        payload["extra_context"] = req.extra_context
+
     if req.project_id:
         result = await db.execute(select(Project).where(Project.id == req.project_id))
         project = result.scalar_one_or_none()
@@ -40,10 +43,9 @@ async def analyze_error(
             payload["repo_url"] = project.ssh_url
             payload["local_path"] = project.root_dir
             if project.env_info:
-                payload["extra_context"] = (payload.get("extra_context") or "") + f"\n环境信息: {project.env_info}"
+                extra = payload.get("extra_context") or ""
+                payload["extra_context"] = (extra + "\n环境信息: " + project.env_info).strip()
 
-    if req.extra_context:
-        payload["extra_context"] = req.extra_context
     if req.language:
         payload["language"] = req.language
     if req.framework:

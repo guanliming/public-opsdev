@@ -50,6 +50,8 @@ class ProjectCreate(BaseModel):
     deploy_script: str = "./deploy.sh"
     log_path: str = "/var/log/"
     env_info: str = ""
+    build_type: str = "jar"
+    build_script: str = ""
 
 
 class ProjectUpdate(BaseModel):
@@ -60,6 +62,8 @@ class ProjectUpdate(BaseModel):
     deploy_script: Optional[str] = None
     log_path: Optional[str] = None
     env_info: Optional[str] = None
+    build_type: Optional[str] = None
+    build_script: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
@@ -71,6 +75,8 @@ class ProjectResponse(BaseModel):
     deploy_script: str
     log_path: str
     env_info: str
+    build_type: str
+    build_script: str
     created_at: datetime
     updated_at: datetime
 
