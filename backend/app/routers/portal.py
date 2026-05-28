@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models import MenuLink, VirtualMachine, User
 from app.schemas import (
     MenuLinkCreate, MenuLinkUpdate, MenuLinkResponse,
-    VirtualMachineCreate, VirtualMachineUpdate, VirtualMachineResponse,
+    VirtualMachineCreate, VirtualMachineUpdate, VirtualMachineResponse, VirtualMachinePublicResponse,
 )
 from app.auth import get_current_user, get_admin_user
 
@@ -58,7 +58,7 @@ async def delete_link(link_id: int, _: User = Depends(get_admin_user), db: Async
     return {"message": "删除成功"}
 
 
-@router.get("/vms", response_model=list[VirtualMachineResponse])
+@router.get("/vms", response_model=list[VirtualMachinePublicResponse])
 async def list_vms(_: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(VirtualMachine).order_by(VirtualMachine.sort_order, VirtualMachine.id))
     return result.scalars().all()

@@ -148,15 +148,18 @@ class VirtualMachineUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
-class VirtualMachineResponse(BaseModel):
+class VirtualMachinePublicResponse(BaseModel):
     id: int
     name: str
     host: str
     port: int
-    username: str
-    password: str
     icon: str
     sort_order: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class VirtualMachineResponse(VirtualMachinePublicResponse):
+    username: str
+    password: str
