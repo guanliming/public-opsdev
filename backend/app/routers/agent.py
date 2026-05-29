@@ -1,3 +1,7 @@
+import json
+import logging
+import sys
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,6 +14,13 @@ from app.database import get_db
 from app.models import User, Project
 from app.auth import get_current_user
 
+logger = logging.getLogger("agent")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(levelname)s: %(message)s"))
+    logger.addHandler(handler)
+
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 
@@ -19,6 +30,12 @@ class AnalyzeRequest(BaseModel):
     extra_context: Optional[str] = None
     language: Optional[str] = None
     framework: Optional[str] = None
+
+
+class ChatRequest(BaseModel):
+    project_id: Optional[int] = None
+    question: str
+    database: Optional[str] = None
 
 
 @router.post("/analyze")
@@ -51,6 +68,8 @@ async def analyze_error(
     if req.framework:
         payload["framework"] = req.framework
 
+    logger.info("→ POST /api/analyze-error payload:\n%s", json.dumps(payload, ensure_ascii=False, indent=2))
+
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(f"{AGENT_URL}/api/analyze-error", json=payload)
@@ -73,4 +92,53 @@ async def analyze_error(
         "fix_suggestions": data.get("fix_suggestions", []),
         "related_files": data.get("related_files", []),
         "token_usage": data.get("token_usage"),
+    }
+
+
+@router.post("/chat")
+async def chat(
+    req: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    question = req.question
+
+    if req.project_id:
+        result = await db.execute(select(Project).where(Project.id == req.project_id))
+        project = result.scalar_one_or_none()
+        if project:
+            payload_local_path = project.root_dir
+            if project.env_info:
+                question = f"项目环境信息:\n{project.env_info}\n\n---\n\n{question}"
+    else:
+        payload_local_path = None
+
+    payload: dict[str, str] = {
+        "question": question,
+    }
+
+    if payload_local_path:
+        payload["local_path"] = payload_local_path
+
+    if req.database:
+        payload["database"] = req.database
+
+    logger.info("→ POST /api/chat payload:\n%s", json.dumps(payload, ensure_ascii=False, indent=2))
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(f"{AGENT_URL}/api/chat", json=payload)
+    except httpx.ConnectError:
+        raise HTTPException(status_code=502, detail="无法连接 Agent 服务，请检查配置")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Agent 服务响应超时")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    data = resp.json()
+
+    return {
+        "answer": data.get("answer", ""),
+        "question": data.get("question", req.question),
     }

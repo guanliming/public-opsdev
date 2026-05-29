@@ -59,9 +59,12 @@
     </div>
     <div ref="terminalContainer" style="height: calc(100vh - 200px); border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden; position: relative;">
       <transition name="fade">
-        <div v-if="selectedText" class="selection-diagnose-btn" @click="diagnoseSelected">
-          <el-button type="primary" size="small" round>
-            <el-icon style="margin-right: 4px;"><MagicStick /></el-icon>AI 诊断选中内容
+        <div v-if="selectedText" class="selection-diagnose-btn">
+          <el-button type="primary" size="small" round @click="diagnoseSelected">
+            <el-icon style="margin-right: 4px;"><MagicStick /></el-icon>AI 诊断
+          </el-button>
+          <el-button type="success" size="small" round @click="chatSelected" style="margin-left: 8px;">
+            <el-icon style="margin-right: 4px;"><Promotion /></el-icon>AI 问答
           </el-button>
         </div>
       </transition>
@@ -73,7 +76,7 @@
 import { ref, inject, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { MagicStick } from '@element-plus/icons-vue'
+import { MagicStick, Promotion } from '@element-plus/icons-vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -83,6 +86,7 @@ import { useUserStore } from '../stores/user'
 const route = useRoute()
 const userStore = useUserStore()
 const openDiagnosis = inject('openDiagnosis')
+const openChat = inject('openChat')
 
 const projects = ref([])
 const selectedProjectId = ref(null)
@@ -140,6 +144,12 @@ function initTerminal() {
 function diagnoseSelected() {
   if (selectedText.value && openDiagnosis) {
     openDiagnosis(selectedProjectId.value, selectedText.value, '')
+  }
+}
+
+function chatSelected() {
+  if (selectedText.value && openChat) {
+    openChat(selectedProjectId.value)
   }
 }
 

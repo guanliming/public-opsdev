@@ -306,6 +306,57 @@ HTTP 状态码：
 
 ---
 
+### POST /api/chat
+
+通用智能问答接口，支持结合数据库、代码和对话内容进行智能问答。
+
+#### Request
+
+```json
+{
+  "question": "查询 quant_db 库中的用户表结构和记录数",
+  "local_path": "/root/ruleengine/ruleengine",
+  "database": "mysql"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `question` | string | **是** | 用户的提问 |
+| `local_path` | string | 否 | 本地代码路径，agent 可以读取和分析 |
+| `database` | string | 否 | 数据库类型提示（mysql/postgres/sqlite/redis） |
+
+#### Response
+
+```json
+{
+  "answer": "查询结果：quant_db 库中共有 5 张表，用户表结构如下...",
+  "question": "查询 quant_db 库中的用户表结构和记录数"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `answer` | string | AI 的回答 |
+| `question` | string | 原问题（用于确认） |
+
+#### Error Response
+
+```json
+{
+  "error": "question is required",
+  "details": "..."
+}
+```
+
+HTTP 状态码：
+- `200` — 成功
+- `400` — 请求参数错误
+- `405` — 请求方法错误（只接受 POST）
+- `500` — 服务端错误
+
+---
+
 ## Python 集成示例
 
 ### 安装依赖
@@ -682,6 +733,7 @@ A: 检查：
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.3 | 2026-05-29 | 新增：`/api/chat` 通用智能问答接口 |
 | v1.2 | 2026-05-28 | 新增：Agent 池化、结果缓存、Structured Output 优化 |
 | v1.1 | 2026-05-28 | 新增：基于 WorkerAgent ReAct 循环，支持数据库工具自动调用 |
 | v1.0 | 2026-05-28 | 初始版本，支持错误日志分析和源码上下文提取 |

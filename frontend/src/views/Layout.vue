@@ -106,7 +106,12 @@ function openDiagnosis(projectId, errorLog, extraContext) {
   diagnosisDrawerRef.value?.open(projectId, errorLog, extraContext)
 }
 
+function openChat(projectId) {
+  diagnosisDrawerRef.value?.openChat(projectId)
+}
+
 provide('openDiagnosis', openDiagnosis)
+provide('openChat', openChat)
 
 async function loadAllProjects() {
   try {
