@@ -1,12 +1,15 @@
 <template>
   <el-drawer
     v-model="visible"
-    title="AI"
     direction="rtl"
     size="600px"
     :close-on-click-modal="false"
     class="ai-drawer"
+    :with-header="false"
   >
+    <div class="drawer-close-btn" @click="visible = false">
+      <el-icon><Close /></el-icon>
+    </div>
     <el-tabs v-model="activeTab" class="ai-tabs">
       <el-tab-pane label="智能诊断" name="diagnosis">
         <div class="diagnosis-content">
@@ -200,7 +203,7 @@
 
 <script setup>
 import { ref, reactive, watch, nextTick } from 'vue'
-import { MagicStick, Promotion } from '@element-plus/icons-vue'
+import { MagicStick, Promotion, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { marked } from 'marked'
 import request from '../utils/request'
@@ -346,16 +349,48 @@ defineExpose({ open, openChat, analyzing })
   display: flex;
   flex-direction: column;
 }
+.ai-drawer :deep(.el-drawer__body) {
+  padding: 0 16px;
+  position: relative;
+}
+.drawer-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #909399;
+  font-size: 18px;
+  z-index: 10;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+.drawer-close-btn:hover {
+  background: #f5f7fa;
+  color: #606266;
+}
+.ai-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  padding: 0;
+}
+.ai-tabs :deep(.el-tabs__nav-wrap) {
+  padding: 0;
+}
+.ai-tabs :deep(.el-tabs__nav) {
+  margin: 0;
+}
 .ai-tabs :deep(.el-tabs__content) {
-  flex: 1;
+  padding: 8px 0 0;
   overflow: auto;
-  padding: 0 4px;
+  flex: 1;
 }
 .ai-tabs :deep(.el-tab-pane) {
   height: 100%;
-}
-.ai-tabs :deep(.el-tabs__header) {
-  margin-bottom: 16px;
+  padding: 0;
 }
 
 /* ─── Diagnosis Tab ─── */
