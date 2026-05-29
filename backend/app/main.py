@@ -25,6 +25,14 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
         await conn.execute(text("UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'user'"))
+        for sql in [
+            "CREATE INDEX IF NOT EXISTS ix_deploy_logs_started_at ON deploy_logs(started_at)",
+            "CREATE INDEX IF NOT EXISTS ix_deploy_logs_status ON deploy_logs(status)",
+        ]:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                pass
     yield
 
 

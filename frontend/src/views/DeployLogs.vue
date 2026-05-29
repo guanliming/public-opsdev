@@ -5,25 +5,25 @@
       <el-button @click="loadLogs">刷新</el-button>
     </div>
 
-    <el-table :data="logs" border stripe>
-      <el-table-column prop="project_name" label="项目名称" width="150" />
-      <el-table-column prop="deployer" label="部署人员" width="120" />
-      <el-table-column label="部署时间" width="180">
+    <el-table :data="logs" border stripe style="width: 100%;">
+      <el-table-column prop="project_name" label="项目名称" min-width="130" />
+      <el-table-column prop="deployer" label="部署人员" width="100" />
+      <el-table-column label="部署时间" width="160">
         <template #default="{ row }">
           {{ formatTime(row.started_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="部署结果" width="120">
+      <el-table-column label="部署结果" width="90">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="完成时间" width="180">
+      <el-table-column label="完成时间" width="160">
         <template #default="{ row }">
           {{ row.finished_at ? formatTime(row.finished_at) : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" min-width="200">
         <template #default="{ row }">
           <el-button size="small" @click="viewLog(row)">查看日志</el-button>
           <el-button size="small" type="primary" @click="diagnoseLog(row)" v-if="row.status === 'failed'">AI 诊断</el-button>

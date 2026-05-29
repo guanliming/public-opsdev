@@ -41,9 +41,9 @@ class DeployLog(Base):
     project_id = Column(Integer, nullable=False, index=True)
     project_name = Column(String(100), nullable=False)
     deployer = Column(String(50), nullable=False)
-    status = Column(String(20), nullable=False, default="running")
+    status = Column(String(20), nullable=False, default="running", index=True)
     log = Column(Text, nullable=False, default="")
-    started_at = Column(DateTime, default=lambda: datetime.now(_beijing))
+    started_at = Column(DateTime, default=lambda: datetime.now(_beijing), index=True)
     finished_at = Column(DateTime, nullable=True)
 
 
