@@ -87,6 +87,8 @@ async def analyze_error(
 
     data = resp.json()
 
+    logger.info("← POST /api/analyze-error response status=%s:\n%s", resp.status_code, json.dumps(data, ensure_ascii=False, indent=2))
+
     return {
         "analysis_id": data.get("analysis_id", ""),
         "root_cause": data.get("root_cause", ""),
@@ -144,6 +146,8 @@ async def chat(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     data = resp.json()
+
+    logger.info("← POST /api/chat response status=%s:\n%s", resp.status_code, json.dumps(data, ensure_ascii=False, indent=2))
 
     return {
         "answer": data.get("answer", ""),
