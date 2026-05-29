@@ -10,9 +10,6 @@
       <el-table-column prop="host" label="地址" min-width="150" />
       <el-table-column prop="port" label="端口" width="80" />
       <el-table-column prop="username" label="用户名" width="120" />
-      <el-table-column label="密码" width="100">
-        <template #default>******</template>
-      </el-table-column>
       <el-table-column prop="sort_order" label="排序" width="80" />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
@@ -34,7 +31,7 @@
           <el-input-number v-model="form.port" :min="1" :max="65535" />
         </el-form-item>
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="SSH 用户名" />
+          <el-input v-model="form.username" :placeholder="editingId ? '留空则不修改' : 'SSH 用户名'" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password :placeholder="editingId ? '留空则不修改' : 'SSH 密码'" />
@@ -80,8 +77,6 @@ const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   host: [{ required: true, message: '请输入地址', trigger: 'blur' }],
   port: [{ required: true, message: '请输入端口', trigger: 'blur' }],
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
 onMounted(() => fetchVms())
@@ -123,16 +118,19 @@ function handleEdit(row) {
 }
 
 async function handleSave() {
+  await formRef.value.validate()
   if (!editingId.value) {
-    await formRef.value.validate()
-  } else {
-    await formRef.value.validateField(['name', 'host', 'port', 'username'])
+    if (!form.username || !form.password) {
+      ElMessage.warning('新增时用户名和密码为必填')
+      return
+    }
   }
   saving.value = true
   try {
     const data = { ...form }
-    if (editingId.value && !data.password) {
-      delete data.password
+    if (editingId.value) {
+      if (!data.username) delete data.username
+      if (!data.password) delete data.password
     }
     if (editingId.value) {
       await request.put(`/portal/vms/${editingId.value}`, data)

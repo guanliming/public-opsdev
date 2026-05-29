@@ -273,13 +273,13 @@ function onTerminalClose() {
 }
 
 .terminal-container {
-  height: 500px;
+  height: 600px;
   background: #1e1e1e;
   border-radius: 4px;
   overflow: hidden;
 }
 
 :deep(.terminal-dialog .el-dialog__body) {
-  padding: 12px;
+  padding: 4px;
 }
 </style>

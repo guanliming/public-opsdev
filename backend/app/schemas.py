@@ -160,6 +160,10 @@ class VirtualMachinePublicResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VirtualMachineAdminResponse(VirtualMachinePublicResponse):
+    username: str
+
+
 class VirtualMachineResponse(VirtualMachinePublicResponse):
     username: str
     password: str
