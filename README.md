@@ -38,5 +38,5 @@ npm run dev
 
 - [x] 用户登录（JWT 72小时有效期）
 - [x] 项目配置管理（SSH地址、部署分支、项目根目录、部署脚本）
-- [ ] 一键部署
-- [ ] 实时日志查看（WebSocket + Xterm.js） 
+- [x] 一键部署
+- [x] 实时日志查看（WebSocket + Xterm.js） 
