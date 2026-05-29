@@ -3,7 +3,9 @@ import os
 import glob as glob_mod
 import shlex
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+_beijing = timezone(timedelta(hours=8))
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -225,7 +227,7 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
         record = result.scalar_one()
         record.status = final_status
         record.log = "".join(log_lines)
-        record.finished_at = datetime.now(timezone.utc)
+        record.finished_at = datetime.now(_beijing)
         await db.commit()
 
 
@@ -385,7 +387,7 @@ async def list_log_files(
                     "path": fpath,
                     "type": ftype,
                     "size": stat.st_size,
-                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=_beijing).isoformat(),
                 })
 
     files.sort(key=lambda x: x["mtime"], reverse=True)

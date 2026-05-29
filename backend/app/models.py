@@ -1,5 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+_beijing = timezone(timedelta(hours=8))
 
 from app.database import Base
 
@@ -12,7 +14,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     display_name = Column(String(100), default="")
     role = Column(String(20), nullable=False, default="user")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
 
 
 class Project(Base):
@@ -28,8 +30,8 @@ class Project(Base):
     env_info = Column(String(2000), nullable=False, default="")
     build_type = Column(String(20), nullable=False, default="jar")
     build_script = Column(String(500), nullable=False, default="")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
+    updated_at = Column(DateTime, default=lambda: datetime.now(_beijing), onupdate=lambda: datetime.now(_beijing))
 
 
 class DeployLog(Base):
@@ -41,7 +43,7 @@ class DeployLog(Base):
     deployer = Column(String(50), nullable=False)
     status = Column(String(20), nullable=False, default="running")
     log = Column(Text, nullable=False, default="")
-    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    started_at = Column(DateTime, default=lambda: datetime.now(_beijing))
     finished_at = Column(DateTime, nullable=True)
 
 
@@ -53,7 +55,7 @@ class MenuLink(Base):
     url = Column(String(500), nullable=False)
     icon = Column(String(100), nullable=True, default="")
     sort_order = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
 
 
 class VirtualMachine(Base):
@@ -67,4 +69,4 @@ class VirtualMachine(Base):
     password = Column(String(255), nullable=False)
     icon = Column(String(100), nullable=True, default="")
     sort_order = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
