@@ -199,6 +199,26 @@ curl -X POST http://localhost:3001/api/analyze-error \
 | `--pool-size` | Agent 池大小（预创建实例数） | `5` |
 | `--cache-ttl` | 缓存 TTL（相同错误指纹） | `5m` |
 
+### 会话记忆功能
+
+Error Analyzer 支持**会话记忆**，最多保存 5 个会话，实现多轮对话：
+
+```bash
+# 第 1 次请求（创建会话）
+curl -X POST http://localhost:3001/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "这个错误是什么", "session_id": "user123"}'
+
+# 第 2 次请求（同一会话，AI 记得上下文）
+curl -X POST http://localhost:3001/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "怎么修复", "session_id": "user123"}'
+```
+
+- `session_id`：会话标识符，不传则使用 `"default"`
+- 超过 5 个会话时，最老的会话会被自动清除
+- `/api/analyze-error` 和 `/api/chat` 都支持会话记忆
+
 > 注意：
 > - `local_path` 来自请求参数中的 `local_path` 字段，不同项目可能不同
 > - 默认端口是 **3001**（不是 3000），避免和完整 rpcserver 冲突
@@ -222,6 +242,7 @@ curl -X POST http://localhost:3001/api/analyze-error \
   "local_path": "/data/projects/my-service",
   "language": "go",
   "framework": "gin",
+  "session_id": "my-session-123",
   "error_log": "2026-05-28 10:00:00 ERROR http: panic serving 10.0.0.1:54321\npanic: runtime error: invalid memory address or nil pointer dereference\n[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x123456]\n\ngoroutine 42 [running]:\nmain.(*Handler).GetUser(...)\n    /data/projects/my-service/handler.go:156 +0x2a1\nmain.(*Server).ServeHTTP(...)\n    /data/projects/my-service/server.go:88 +0x1b3",
   "db_connection": "postgres://app:password@db-host:5432/my_service?sslmode=disable",
   "extra_context": "This error occurs when the API receives a GET request with an invalid user ID"
@@ -232,6 +253,7 @@ curl -X POST http://localhost:3001/api/analyze-error \
 |------|------|------|------|
 | `project_name` | string | 是 | 项目名称 |
 | `error_log` | string | **是** | 完整的错误日志文本 |
+| `session_id` | string | 否 | 会话 ID，用于多轮对话。超过 5 个会话时最老的会被清除 |
 | `local_path` | string | 否 | 项目本地代码路径。提供后可自动提取堆栈对应的源代码上下文 |
 | `repo_url` | string | 否 | 仓库地址，供参考 |
 | `language` | string | 否 | 编程语言（go / python / java / typescript 等） |
@@ -323,6 +345,7 @@ HTTP 状态码：
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `question` | string | **是** | 用户的提问 |
+| `session_id` | string | 否 | 会话 ID，用于多轮对话。超过 5 个会话时最老的会被清除 |
 | `local_path` | string | 否 | 本地代码路径，agent 可以读取和分析 |
 | `database` | string | 否 | 数据库类型提示（mysql/postgres/sqlite/redis） |
 
@@ -331,7 +354,8 @@ HTTP 状态码：
 ```json
 {
   "answer": "查询结果：quant_db 库中共有 5 张表，用户表结构如下...",
-  "question": "查询 quant_db 库中的用户表结构和记录数"
+  "question": "查询 quant_db 库中的用户表结构和记录数",
+  "session_id": "my-session-123"
 }
 ```
 
@@ -390,6 +414,7 @@ class ErrorAnalyzer:
         framework: Optional[str] = None,
         db_connection: Optional[str] = None,
         extra_context: Optional[str] = None,
+        session_id: Optional[str] = None,
         timeout: int = 120,
     ) -> dict:
         """提交错误日志进行分析
@@ -403,6 +428,7 @@ class ErrorAnalyzer:
             framework: 框架
             db_connection: 数据库连接字符串
             extra_context: 额外上下文信息
+            session_id: 会话 ID（用于多轮对话）
             timeout: 超时时间（秒），默认 120
 
         Returns:
@@ -430,6 +456,8 @@ class ErrorAnalyzer:
             payload["db_connection"] = db_connection
         if extra_context:
             payload["extra_context"] = extra_context
+        if session_id:
+            payload["session_id"] = session_id
 
         resp = requests.post(
             self.analyze_url,
@@ -733,6 +761,7 @@ A: 检查：
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.4 | 2026-05-29 | 新增：会话记忆功能（最多 5 个会话，支持多轮对话） |
 | v1.3 | 2026-05-29 | 新增：`/api/chat` 通用智能问答接口 |
 | v1.2 | 2026-05-28 | 新增：Agent 池化、结果缓存、Structured Output 优化 |
 | v1.1 | 2026-05-28 | 新增：基于 WorkerAgent ReAct 循环，支持数据库工具自动调用 |

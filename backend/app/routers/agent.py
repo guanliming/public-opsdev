@@ -30,12 +30,14 @@ class AnalyzeRequest(BaseModel):
     extra_context: Optional[str] = None
     language: Optional[str] = None
     framework: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
     project_id: Optional[int] = None
     question: str
     database: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 @router.post("/analyze")
@@ -67,6 +69,8 @@ async def analyze_error(
         payload["language"] = req.language
     if req.framework:
         payload["framework"] = req.framework
+    if req.session_id:
+        payload["session_id"] = req.session_id
 
     logger.info("→ POST /api/analyze-error payload:\n%s", json.dumps(payload, ensure_ascii=False, indent=2))
 
@@ -92,6 +96,7 @@ async def analyze_error(
         "fix_suggestions": data.get("fix_suggestions", []),
         "related_files": data.get("related_files", []),
         "token_usage": data.get("token_usage"),
+        "session_id": data.get("session_id", req.session_id or ""),
     }
 
 
@@ -122,6 +127,8 @@ async def chat(
 
     if req.database:
         payload["database"] = req.database
+    if req.session_id:
+        payload["session_id"] = req.session_id
 
     logger.info("→ POST /api/chat payload:\n%s", json.dumps(payload, ensure_ascii=False, indent=2))
 
@@ -141,4 +148,5 @@ async def chat(
     return {
         "answer": data.get("answer", ""),
         "question": data.get("question", req.question),
+        "session_id": data.get("session_id", req.session_id or ""),
     }

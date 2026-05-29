@@ -223,6 +223,12 @@ const error = ref('')
 const chatLoading = ref(false)
 const chatMessages = ref([])
 const chatMessagesRef = ref(null)
+const diagnosisSessionId = ref('')
+const chatSessionId = ref('')
+
+function generateSessionId(prefix = 'sess') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
 
 const form = reactive({
   projectId: null,
@@ -251,12 +257,15 @@ function open(projectId, errorLog, extraContext) {
   if (projectId) form.projectId = projectId
   if (errorLog) form.errorLog = errorLog
   if (extraContext) form.extraContext = extraContext
+  diagnosisSessionId.value = generateSessionId('diag')
   visible.value = true
 }
 
 function openChat(projectId) {
   activeTab.value = 'chat'
   if (projectId) chatForm.projectId = projectId
+  chatSessionId.value = generateSessionId('chat')
+  chatMessages.value = []
   visible.value = true
   nextTick(scrollToBottom)
 }
@@ -271,8 +280,10 @@ async function startAnalysis() {
     const payload = { error_log: form.errorLog }
     if (form.projectId) payload.project_id = form.projectId
     if (form.extraContext) payload.extra_context = form.extraContext
+    payload.session_id = diagnosisSessionId.value
 
-    const { data } = await request.post('/agent/analyze', payload, { timeout: 130000 })
+    const { data } = await request.post('/agent/analyze', payload, { timeout: 300000 })
+    if (data.session_id) diagnosisSessionId.value = data.session_id
     result.value = data
   } catch (e) {
     const msg = e.response?.data?.detail || e.message || '诊断失败'
@@ -296,8 +307,10 @@ async function sendChat() {
   try {
     const payload = { question }
     if (chatForm.projectId) payload.project_id = chatForm.projectId
+    payload.session_id = chatSessionId.value
 
-    const { data } = await request.post('/agent/chat', payload, { timeout: 130000 })
+    const { data } = await request.post('/agent/chat', payload, { timeout: 300000 })
+    if (data.session_id) chatSessionId.value = data.session_id
     const elapsed = Math.round((Date.now() - startTime) / 1000)
     chatMessages.value.push({ role: 'assistant', content: data.answer || '未获取到回答', duration: elapsed })
   } catch (e) {
