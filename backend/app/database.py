@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -19,3 +20,15 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        try:
+            await conn.execute(text("ALTER TABLE projects ADD COLUMN env_info VARCHAR(2000) NOT NULL DEFAULT ''"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE projects ADD COLUMN build_type VARCHAR(20) NOT NULL DEFAULT 'jar'"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE projects ADD COLUMN build_script VARCHAR(500) NOT NULL DEFAULT ''"))
+        except Exception:
+            pass

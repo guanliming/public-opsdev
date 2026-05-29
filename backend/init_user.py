@@ -17,7 +17,7 @@ async def main():
         if result.scalar_one_or_none():
             print(f"User '{username}' already exists.")
             return
-        user = User(username=username, hashed_password=hash_password(password), display_name=username)
+        user = User(username=username, hashed_password=hash_password(password), display_name=username, role="admin")
         db.add(user)
         await db.commit()
         print(f"Created user '{username}' with password '{password}'")

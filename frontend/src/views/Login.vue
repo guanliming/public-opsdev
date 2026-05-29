@@ -2,7 +2,7 @@
   <div class="login-container">
     <el-card class="login-card">
       <template #header>
-        <h2 style="margin: 0; text-align: center;">OpsDevOps</h2>
+        <h2 style="margin: 0; text-align: center;">DevOps</h2>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="username">
@@ -56,7 +56,9 @@ async function handleLogin() {
   loading.value = true
   try {
     const { data } = await request.post('/auth/login', form)
-    userStore.setToken(data.access_token, form.username)
+    userStore.setToken(data.access_token, form.username, '')
+    const { data: me } = await request.get('/auth/me')
+    userStore.setToken(data.access_token, me.username, me.role)
     ElMessage.success('登录成功')
     router.push('/')
   } catch (e) {

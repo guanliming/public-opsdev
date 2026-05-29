@@ -1,4 +1,4 @@
-# OpsDevOps
+# DevOps
 
 公司定制化 DevOps 系统，减少开发人员直接登录服务器操作。
 
@@ -20,6 +20,7 @@ pip install -r requirements.txt
 python init_user.py
 
 # 启动服务
+ss -lntp | grep 8000
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -38,4 +39,4 @@ npm run dev
 - [x] 用户登录（JWT 72小时有效期）
 - [x] 项目配置管理（SSH地址、部署分支、项目根目录、部署脚本）
 - [ ] 一键部署
-- [ ] 实时日志查看（WebSocket + Xterm.js）
+- [ ] 实时日志查看（WebSocket + Xterm.js） 
