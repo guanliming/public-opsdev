@@ -43,6 +43,7 @@
       width="80%"
       :close-on-click-modal="false"
       :destroy-on-close="true"
+      :trap-focus="false"
       @closed="onTerminalClose"
       class="terminal-dialog"
     >
@@ -108,11 +109,14 @@ function initTerminal(vm) {
       background: '#1e1e1e',
       foreground: '#d4d4d4',
     },
+    rightClickSelectsWord: true,
+    allowProposedApi: true,
   })
   fitAddon = new FitAddon()
   terminal.loadAddon(fitAddon)
   terminal.open(terminalRef.value)
   fitAddon.fit()
+  terminal.focus()
 
   terminal.writeln('正在连接 ' + vm.host + ':' + vm.port + ' ...')
 
@@ -145,8 +149,30 @@ function initTerminal(vm) {
     terminal.writeln('\r\n连接已断开')
   }
 
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (event.ctrlKey && event.key === 'c' && event.type === 'keydown') {
+      if (terminal.hasSelection()) {
+        navigator.clipboard.writeText(terminal.getSelection()).catch(() => {})
+        terminal.clearSelection()
+        return false
+      }
+    }
+    if (event.ctrlKey && event.key === 'v' && event.type === 'keydown') {
+      navigator.clipboard.readText().then((text) => {
+        if (text && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(text)
+        }
+      }).catch(() => {})
+      return false
+    }
+    return true
+  })
+
   terminal.onData((data) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
+      if (/^\x1b\[M/.test(data) || /^\x1b\[</.test(data)) {
+        return
+      }
       ws.send(data)
     }
   })
