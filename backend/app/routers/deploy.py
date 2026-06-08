@@ -53,11 +53,14 @@ def validate_log_file_access(project: Project, file_path: str):
 
 async def run_command(cmd: str, cwd: str, log_lines: list[str], deploy_log_id: int):
     log_lines.append(f"$ {cmd}\n")
+    env = {**os.environ}
+    env.pop("GIT_DIR", None)
+    full_cmd = f"cd {shlex.quote(cwd)} && {cmd}"
     process = await asyncio.create_subprocess_shell(
-        cmd,
+        full_cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
-        cwd=cwd,
+        env=env,
         start_new_session=True,
     )
 
@@ -107,7 +110,7 @@ async def run_command(cmd: str, cwd: str, log_lines: list[str], deploy_log_id: i
 
 async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
     log_lines = deploy_logs_cache.setdefault(deploy_log_id, [])
-    root_dir = project.root_dir
+    root_dir = project.root_dir.strip().replace("\r", "").replace("\n", "")
     ssh_url = project.ssh_url
     branch = project.branch
     deploy_script = project.deploy_script
@@ -120,11 +123,13 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
         # Step 1: Check if code exists
         is_git_repo = False
         if os.path.isdir(root_dir):
+            check_env = {**os.environ}
+            check_env.pop("GIT_DIR", None)
             check_proc = await asyncio.create_subprocess_shell(
-                "git rev-parse --is-inside-work-tree",
+                f"cd {shlex.quote(root_dir)} && git rev-parse --is-inside-work-tree",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=root_dir,
+                env=check_env,
             )
             await check_proc.wait()
             is_git_repo = check_proc.returncode == 0
@@ -140,15 +145,20 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
                 raise Exception(f"git checkout 失败，退出码: {rc}")
         else:
             log_lines.append("--- 检测到已有代码，切换分支并拉取最新 ---\n")
+            await run_command("pwd", root_dir, log_lines, deploy_log_id)
+            await run_command("git branch", root_dir, log_lines, deploy_log_id)
+            await run_command("git rev-parse --show-toplevel", root_dir, log_lines, deploy_log_id)
             rc = await run_command("git fetch --all", root_dir, log_lines, deploy_log_id)
             if rc != 0:
                 raise Exception(f"git fetch 失败，退出码: {rc}")
             rc = await run_command(f"git checkout {branch}", root_dir, log_lines, deploy_log_id)
             if rc != 0:
                 raise Exception(f"git checkout {branch} 失败，退出码: {rc}")
+            await run_command("git branch", root_dir, log_lines, deploy_log_id)
             rc = await run_command(f"git pull origin {branch}", root_dir, log_lines, deploy_log_id)
             if rc != 0:
                 raise Exception(f"git pull 失败，退出码: {rc}")
+            await run_command("git branch", root_dir, log_lines, deploy_log_id)
 
         # Step 2: Build
         log_lines.append("\n--- 开始构建 ---\n")
