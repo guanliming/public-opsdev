@@ -18,8 +18,9 @@
           {{ new Date(row.created_at).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="warning" @click="handleResetLock(row)">重置登录失败</el-button>
           <el-button size="small" @click="openDialog(row)">编辑</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)" :disabled="row.username === currentUsername">删除</el-button>
         </template>
@@ -129,6 +130,17 @@ async function handleDelete(row) {
     await loadUsers()
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '删除失败')
+  }
+}
+
+async function handleResetLock(row) {
+  try {
+    await ElMessageBox.confirm(`确定重置用户「${row.username}」的登录失败次数和锁定状态？`, '确认', { type: 'warning' })
+    await request.post(`/auth/login-attempts/${encodeURIComponent(row.username)}/reset`)
+    ElMessage.success('已重置')
+  } catch (e) {
+    if (e === 'cancel') return
+    ElMessage.error(e.response?.data?.detail || '重置失败')
   }
 }
 

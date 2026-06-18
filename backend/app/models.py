@@ -70,3 +70,14 @@ class VirtualMachine(Base):
     icon = Column(String(100), nullable=True, default="")
     sort_order = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
+
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), nullable=False, index=True)
+    failed_count = Column(Integer, nullable=False, default=0)
+    last_failed_at = Column(DateTime, nullable=True)
+    locked_until = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(_beijing), onupdate=lambda: datetime.now(_beijing))

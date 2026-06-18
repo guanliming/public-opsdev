@@ -12,6 +12,22 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    captcha_token: str
+    captcha_code: str
+
+
+class CaptchaResponse(BaseModel):
+    captcha_token: str
+    image: str
+    expires_in: int
+
+
+class LoginAttemptStatus(BaseModel):
+    username: str
+    failed_count: int
+    locked: bool
+    locked_until: Optional[datetime] = None
+    remaining_seconds: int = 0
 
 
 class UserCreate(BaseModel):
