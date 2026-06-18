@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import request from '../utils/request'
@@ -98,6 +98,7 @@ async function refreshCaptcha() {
     const { data } = await request.get('/auth/captcha')
     form.captcha_token = data.captcha_token
     captchaImage.value = data.image
+    form.captcha_code = ''
   } catch (e) {
     ElMessage.error('验证码加载失败')
   }
@@ -137,6 +138,7 @@ function applyLock(payload) {
 async function handleLogin() {
   await formRef.value.validate()
   loading.value = true
+  userStore.logout()
   try {
     const { data } = await request.post('/auth/login', { ...form })
     userStore.setToken(data.access_token, form.username, '')
@@ -157,7 +159,17 @@ async function handleLogin() {
   }
 }
 
-onMounted(refreshCaptcha)
+watch(captchaImage, () => {
+  form.captcha_code = ''
+})
+
+onMounted(() => {
+  userStore.logout()
+  form.username = ''
+  form.password = ''
+  form.captcha_code = ''
+  refreshCaptcha()
+})
 onUnmounted(stopCountdown)
 </script>
 
@@ -181,8 +193,8 @@ onUnmounted(stopCountdown)
   flex: 1;
 }
 .captcha-image {
-  width: 140px;
-  height: 40px;
+  width: 160px;
+  height: 56px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   display: flex;

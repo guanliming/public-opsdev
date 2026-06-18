@@ -7,14 +7,18 @@ from captcha.image import ImageCaptcha
 
 
 _CAPTCHA_LENGTH = 4
-_CAPTCHA_CHARS = string.digits + string.ascii_uppercase
+_CAPTCHA_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
 
 class CaptchaService:
     def __init__(self, length: int = _CAPTCHA_LENGTH, chars: str = _CAPTCHA_CHARS):
         self.length = length
         self.chars = chars
-        self._image = ImageCaptcha(width=140, height=48, font_sizes=(32, 36, 38))
+        self._image = ImageCaptcha(
+            width=160,
+            height=56,
+            font_sizes=(38, 42, 46),
+        )
 
     def generate(self) -> tuple[str, str, bytes]:
         text = "".join(secrets.choice(self.chars) for _ in range(self.length))
