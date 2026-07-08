@@ -7,9 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 
-
 from app.database import init_db, engine
-from app.routers import auth, projects, deploy, portal, ssh, agent
+from app.routers import auth, projects, deploy, portal, ssh, agent, datasources, sql
 
 
 @asynccontextmanager
@@ -17,14 +16,26 @@ async def lifespan(app: FastAPI):
     await init_db()
     async with engine.begin() as conn:
         try:
-            await conn.execute(text("ALTER TABLE projects ADD COLUMN log_path VARCHAR(500) NOT NULL DEFAULT '/var/log/'"))
+            await conn.execute(
+                text(
+                    "ALTER TABLE projects ADD COLUMN log_path VARCHAR(500) NOT NULL DEFAULT '/var/log/'"
+                )
+            )
         except Exception:
             pass
         try:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user'"))
+            await conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user'"
+                )
+            )
         except Exception:
             pass
-        await conn.execute(text("UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'user'"))
+        await conn.execute(
+            text(
+                "UPDATE users SET role = 'admin' WHERE username = 'admin' AND role = 'user'"
+            )
+        )
         for sql in [
             "CREATE INDEX IF NOT EXISTS ix_deploy_logs_started_at ON deploy_logs(started_at)",
             "CREATE INDEX IF NOT EXISTS ix_deploy_logs_status ON deploy_logs(status)",
@@ -52,6 +63,8 @@ app.include_router(deploy.router)
 app.include_router(portal.router)
 app.include_router(ssh.router)
 app.include_router(agent.router)
+app.include_router(datasources.router)
+app.include_router(sql.router)
 
 
 @app.get("/api/health")

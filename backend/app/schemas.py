@@ -183,3 +183,104 @@ class VirtualMachineAdminResponse(VirtualMachinePublicResponse):
 class VirtualMachineResponse(VirtualMachinePublicResponse):
     username: str
     password: str
+
+
+class DataSourceCreate(BaseModel):
+    name: str
+    db_type: str = "mysql"
+    host: str
+    port: int = 3306
+    username: str
+    password: str
+    database: str = ""
+    charset: str = "utf8mb4"
+    description: str = ""
+
+
+class DataSourceUpdate(BaseModel):
+    name: Optional[str] = None
+    db_type: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    database: Optional[str] = None
+    charset: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DataSourceResponse(BaseModel):
+    id: int
+    name: str
+    db_type: str
+    host: str
+    port: int
+    username: str
+    database: str
+    charset: str
+    description: str
+    has_password: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DataSourceTestRequest(BaseModel):
+    name: Optional[str] = None
+    db_type: str = "mysql"
+    host: str
+    port: int = 3306
+    username: str
+    password: Optional[str] = None
+    database: str = ""
+    charset: str = "utf8mb4"
+
+
+class DataSourceTestResponse(BaseModel):
+    ok: bool
+    version: Optional[str] = None
+    error: Optional[str] = None
+
+
+class SqlColumnInfo(BaseModel):
+    name: str
+    type: str
+
+
+class SqlStatementResult(BaseModel):
+    sql: str
+    kind: str
+    affected_rows: int = 0
+    rows: Optional[list[dict]] = None
+    columns: Optional[list[SqlColumnInfo]] = None
+    execution_time_ms: float = 0
+    truncated: bool = False
+    error: Optional[str] = None
+    skipped: bool = False
+    skip_reason: Optional[str] = None
+
+
+class SqlExecuteRequest(BaseModel):
+    sql: str
+    database: Optional[str] = None
+    max_rows: int = 1000
+    confirm_large_change: bool = False
+
+
+class SqlExecuteResponse(BaseModel):
+    datasource_id: int
+    is_admin: bool
+    statements: list[SqlStatementResult]
+    total_affected_rows: int
+    total_execution_time_ms: float
+
+
+class SqlDatabaseInfo(BaseModel):
+    name: str
+
+
+class SqlTableInfo(BaseModel):
+    name: str
+    rows: Optional[int] = None
+    size_mb: Optional[float] = None

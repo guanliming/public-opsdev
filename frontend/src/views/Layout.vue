@@ -44,9 +44,17 @@
             <el-icon><SetUp /></el-icon>
             <template #title>虚拟机管理</template>
           </el-menu-item>
-          <el-menu-item v-if="userStore.isAdmin" index="/menu-manage">
+<el-menu-item v-if="userStore.isAdmin" index="/menu-manage">
             <el-icon><MenuIcon /></el-icon>
             <template #title>菜单管理</template>
+          </el-menu-item>
+          <el-menu-item v-if="userStore.isAdmin" index="/datasources">
+            <el-icon><Coin /></el-icon>
+            <template #title>数据源管理</template>
+          </el-menu-item>
+          <el-menu-item index="/sql-console">
+            <el-icon><DataAnalysis /></el-icon>
+            <template #title>SQL 控制台</template>
           </el-menu-item>
         </el-menu>
         <div style="text-align: center; padding: 12px 0; cursor: pointer; border-top: 1px solid #e8e8e8;" @click="collapsed = !collapsed">
@@ -86,7 +94,7 @@
 import { ref, reactive, provide, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Folder, Document, Monitor, Fold, Expand, ArrowDown, User as UserIcon, HomeFilled, Menu as MenuIcon, SetUp } from '@element-plus/icons-vue'
+import { Folder, Document, Monitor, Fold, Expand, ArrowDown, User as UserIcon, HomeFilled, Menu as MenuIcon, SetUp, Coin, DataAnalysis } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import request from '../utils/request'
 import AiFloatingBall from '../components/AiFloatingBall.vue'

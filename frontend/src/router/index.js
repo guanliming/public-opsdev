@@ -43,10 +43,20 @@ const routes = [
         name: 'MenuManage',
         component: () => import('../views/MenuManage.vue'),
       },
-      {
+{
         path: 'vm-manage',
         name: 'VmManage',
         component: () => import('../views/VmManage.vue'),
+      },
+      {
+        path: 'datasources',
+        name: 'DataSources',
+        component: () => import('../views/DataSources.vue'),
+      },
+      {
+        path: 'sql-console',
+        name: 'SqlConsole',
+        component: () => import('../views/SqlConsole.vue'),
       },
     ],
   },

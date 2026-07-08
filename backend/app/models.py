@@ -31,7 +31,11 @@ class Project(Base):
     build_type = Column(String(20), nullable=False, default="jar")
     build_script = Column(String(500), nullable=False, default="")
     created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
-    updated_at = Column(DateTime, default=lambda: datetime.now(_beijing), onupdate=lambda: datetime.now(_beijing))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(_beijing),
+        onupdate=lambda: datetime.now(_beijing),
+    )
 
 
 class DeployLog(Base):
@@ -80,4 +84,29 @@ class LoginAttempt(Base):
     failed_count = Column(Integer, nullable=False, default=0)
     last_failed_at = Column(DateTime, nullable=True)
     locked_until = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(_beijing), onupdate=lambda: datetime.now(_beijing))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(_beijing),
+        onupdate=lambda: datetime.now(_beijing),
+    )
+
+
+class DataSource(Base):
+    __tablename__ = "data_sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    db_type = Column(String(20), nullable=False, default="mysql")
+    host = Column(String(255), nullable=False)
+    port = Column(Integer, nullable=False, default=3306)
+    username = Column(String(100), nullable=False)
+    password_encrypted = Column(String(1024), nullable=False)
+    database = Column(String(100), nullable=False, default="")
+    charset = Column(String(20), nullable=False, default="utf8mb4")
+    description = Column(String(500), nullable=False, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(_beijing))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(_beijing),
+        onupdate=lambda: datetime.now(_beijing),
+    )
