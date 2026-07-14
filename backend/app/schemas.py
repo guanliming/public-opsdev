@@ -284,3 +284,8 @@ class SqlTableInfo(BaseModel):
     name: str
     rows: Optional[int] = None
     size_mb: Optional[float] = None
+    columns: Optional[list[SqlColumnInfo]] = None
+
+
+class SqlKeywordsResponse(BaseModel):
+    keywords: list[str]

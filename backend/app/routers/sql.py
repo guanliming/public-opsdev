@@ -13,9 +13,11 @@ from app.database import get_db
 from app.datasource_pool import acquire, data_source_manager
 from app.models import DataSource, User
 from app.schemas import (
+    SqlColumnInfo,
     SqlDatabaseInfo,
     SqlExecuteRequest,
     SqlExecuteResponse,
+    SqlKeywordsResponse,
     SqlStatementResult,
     SqlTableInfo,
 )
@@ -75,7 +77,7 @@ async def _list_databases(ds: DataSource) -> List[str]:
 
 
 async def _list_tables(
-    ds: DataSource, database: Optional[str] = None
+    ds: DataSource, database: Optional[str] = None, with_columns: bool = False
 ) -> List[SqlTableInfo]:
     db_name = database or ds.database
     if not db_name:
@@ -90,10 +92,92 @@ async def _list_tables(
         async with conn.cursor() as cur:
             await cur.execute(sql, (db_name,))
             rows = await cur.fetchall()
-    return [
-        SqlTableInfo(name=r[0], rows=int(r[1] or 0), size_mb=float(r[2] or 0))
-        for r in rows
-    ]
+        result = [
+            SqlTableInfo(name=r[0], rows=int(r[1] or 0), size_mb=float(r[2] or 0))
+            for r in rows
+        ]
+        if with_columns and result:
+            table_names = [t.name for t in result]
+            placeholders = ",".join(["%s"] * len(table_names))
+            cols_sql = (
+                "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE "
+                "FROM information_schema.COLUMNS "
+                f"WHERE TABLE_SCHEMA = %s AND TABLE_NAME IN ({placeholders}) "
+                "ORDER BY TABLE_NAME, ORDINAL_POSITION"
+            )
+            async with conn.cursor() as cur:
+                await cur.execute(cols_sql, [db_name] + table_names)
+                col_rows = await cur.fetchall()
+            cols_by_table: Dict[str, List[SqlColumnInfo]] = {}
+            for tr, cn, ct in col_rows:
+                cols_by_table.setdefault(tr, []).append(
+                    SqlColumnInfo(name=cn, type=ct or "")
+                )
+            for t in result:
+                t.columns = cols_by_table.get(t.name, [])
+        return result
+
+
+_SQL_KEYWORDS = sorted(
+    {
+        "ADD",
+        "ALL",
+        "ALTER",
+        "AND",
+        "AS",
+        "ASC",
+        "BETWEEN",
+        "BY",
+        "CASE",
+        "COLUMN",
+        "CREATE",
+        "DATABASE",
+        "DELETE",
+        "DESC",
+        "DISTINCT",
+        "DROP",
+        "ELSE",
+        "END",
+        "EXISTS",
+        "FOREIGN",
+        "FROM",
+        "FULL",
+        "GROUP",
+        "HAVING",
+        "IN",
+        "INDEX",
+        "INNER",
+        "INSERT",
+        "INTO",
+        "IS",
+        "JOIN",
+        "KEY",
+        "LEFT",
+        "LIKE",
+        "LIMIT",
+        "NOT",
+        "NULL",
+        "ON",
+        "OR",
+        "ORDER",
+        "OUTER",
+        "PRIMARY",
+        "REFERENCES",
+        "REPLACE",
+        "RIGHT",
+        "SELECT",
+        "SET",
+        "TABLE",
+        "THEN",
+        "UNION",
+        "UNIQUE",
+        "UPDATE",
+        "VALUES",
+        "WHEN",
+        "WHERE",
+        "WITH",
+    }
+)
 
 
 async def _ensure_database(
@@ -166,6 +250,7 @@ async def sql_list_databases(
 async def sql_list_tables(
     ds_id: int,
     database: Optional[str] = None,
+    with_columns: bool = False,
     _: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -173,7 +258,12 @@ async def sql_list_tables(
     if not ds:
         raise HTTPException(status_code=404, detail="数据源不存在")
     ds = await _ensure_database(ds, database)
-    return await _list_tables(ds, database)
+    return await _list_tables(ds, database, with_columns=with_columns)
+
+
+@router.get("/keywords", response_model=SqlKeywordsResponse)
+async def sql_keywords(_: User = Depends(get_current_user)):
+    return SqlKeywordsResponse(keywords=_SQL_KEYWORDS)
 
 
 @router.post("/datasources/{ds_id}/execute", response_model=SqlExecuteResponse)

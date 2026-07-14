@@ -45,7 +45,7 @@ let posStart = { x: 0, y: 0 }
 
 function setDefaultPosition() {
   position.x = window.innerWidth - 70
-  position.y = window.innerHeight - 120
+  position.y = window.innerHeight - 130
 }
 
 function startDrag(e) {
@@ -126,6 +126,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .ai-ball-inner {
@@ -140,6 +141,7 @@ onUnmounted(() => {
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
   z-index: 2;
+  pointer-events: auto;
 }
 
 .ai-ball-inner:hover {
@@ -162,6 +164,7 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   animation: pulse 2s ease-in-out infinite;
   z-index: 1;
+  pointer-events: none;
 }
 
 @keyframes pulse {
