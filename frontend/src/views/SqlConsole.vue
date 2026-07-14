@@ -340,21 +340,26 @@ function findCurrentToken() {
   }
 }
 
-function findContextTable() {
+function _lastTableFor(prefix) {
   const info = currentTokenInfo
   if (!info) return null
   const before = info.fullText.substring(0, info.startOffset)
   const upcase = before.toUpperCase()
-  const tail = upcase.slice(-200)
-  const fromMatch = /FROM\s+([`"]?)([A-Za-z_][A-Za-z0-9_.]*)\1[^\w]?$/.exec(tail)
-  if (fromMatch) return fromMatch[2]
-  const joinMatch = /JOIN\s+([`"]?)([A-Za-z_][A-Za-z0-9_.]*)\1[^\w]?$/.exec(tail)
-  if (joinMatch) return joinMatch[2]
-  const updateMatch = /UPDATE\s+([`"]?)([A-Za-z_][A-Za-z0-9_.]*)\1[^\w]?$/.exec(tail)
-  if (updateMatch) return updateMatch[2]
-  const intoMatch = /INTO\s+([`"]?)([A-Za-z_][A-Za-z0-9_.]*)\1[^\w]?$/.exec(tail)
-  if (intoMatch) return intoMatch[2]
-  return null
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const re = new RegExp(escaped + "\\s+([`\"]?)([A-Za-z_][A-Za-z0-9_.]*)\\1(?![A-Za-z0-9_.`\"])", "g")
+  let last = null
+  let m
+  while ((m = re.exec(upcase)) !== null) {
+    last = m[2]
+  }
+  return last
+}
+
+function findContextTable() {
+  return _lastTableFor("FROM")
+    || _lastTableFor("JOIN")
+    || _lastTableFor("UPDATE")
+    || _lastTableFor("INTO")
 }
 
 function isInsideString() {
