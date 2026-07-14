@@ -62,18 +62,18 @@
       <div class="main">
         <div class="editor-wrap">
           <div class="editor-container">
-            <div
+            <textarea
               ref="editorRef"
               class="sql-editor"
-              contenteditable="true"
+              :value="editorText"
+              :placeholder="placeholder"
               spellcheck="false"
-              :data-placeholder="placeholder"
               @input="onEditorInput"
               @keydown="onEditorKeydown"
               @keyup="onEditorSelectionChange"
               @click="onEditorSelectionChange"
               @blur="onEditorBlur"
-            ></div>
+            ></textarea>
             <div
               v-if="completions.length > 0 && completionVisible"
               class="completion-popup"
@@ -189,6 +189,7 @@ const keywords = ref([])
 const selectedDs = ref(null)
 const selectedDb = ref('')
 const tableFilter = ref('')
+const editorText = ref('')
 const editorRef = ref(null)
 const selectedText = ref('')
 const running = ref(false)
@@ -223,13 +224,12 @@ function tagType(stmt) {
 }
 
 function getEditorText() {
-  return editorRef.value ? (editorRef.value.innerText || '').replace(/\u00a0/g, ' ') : ''
+  return editorText.value
 }
 
 function setEditorText(text) {
-  if (!editorRef.value) return
-  editorRef.value.innerText = text
-  moveCaretToEnd()
+  editorText.value = text
+  nextTick(() => moveCaretToEnd())
   onEditorSelectionChange()
 }
 
@@ -237,12 +237,8 @@ function moveCaretToEnd() {
   const el = editorRef.value
   if (!el) return
   el.focus()
-  const range = document.createRange()
-  range.selectNodeContents(el)
-  range.collapse(false)
-  const sel = window.getSelection()
-  sel.removeAllRanges()
-  sel.addRange(range)
+  const len = editorText.value.length
+  el.selectionStart = el.selectionEnd = len
 }
 
 function insertAtCursor(text) {
@@ -252,90 +248,73 @@ function insertAtCursor(text) {
     return
   }
   el.focus()
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) {
-    setEditorText(getEditorText() + text)
-    return
-  }
-  const range = sel.getRangeAt(0)
-  if (!el.contains(range.commonAncestorContainer)) {
-    setEditorText(getEditorText() + text)
-    return
-  }
-  range.deleteContents()
-  const node = document.createTextNode(text)
-  range.insertNode(node)
-  range.setStartAfter(node)
-  range.collapse(true)
-  sel.removeAllRanges()
-  sel.addRange(range)
-  onEditorSelectionChange()
+  const start = el.selectionStart
+  const end = el.selectionEnd
+  const before = editorText.value.substring(0, start)
+  const after = editorText.value.substring(end)
+  editorText.value = before + text + after
+  nextTick(() => {
+    el.selectionStart = el.selectionEnd = start + text.length
+  })
   hideCompletion()
+  onEditorSelectionChange()
 }
 
 function getCaretRect() {
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return null
-  const range = sel.getRangeAt(0).cloneRange()
-  if (range.collapsed) {
-    const node = range.startContainer
-    if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
-      const r = document.createRange()
-      r.setStart(node, Math.max(0, range.startOffset - 1))
-      r.setEnd(node, range.startOffset)
-      return r.getBoundingClientRect()
-    }
+  const el = editorRef.value
+  if (!el) return null
+  const pos = el.selectionStart
+  let mirror = document.getElementById('textarea-mirror')
+  if (!mirror) {
+    mirror = document.createElement('div')
+    mirror.id = 'textarea-mirror'
+    document.body.appendChild(mirror)
   }
-  return range.getBoundingClientRect()
+  const cs = getComputedStyle(el)
+  mirror.style.cssText = [
+    'position:fixed;top:0;left:0;visibility:hidden;',
+    'white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;',
+    `font-family:${cs.fontFamily};font-size:${cs.fontSize};font-weight:${cs.fontWeight};`,
+    `letter-spacing:${cs.letterSpacing};line-height:${cs.lineHeight};`,
+    `padding:${cs.padding};border:${cs.border};`,
+    `width:${el.clientWidth}px;box-sizing:border-box;`,
+  ].join('')
+  const before = editorText.value.substring(0, pos)
+  mirror.textContent = before
+  const span = document.createElement('span')
+  span.textContent = '.'
+  mirror.appendChild(span)
+  const spanRect = span.getBoundingClientRect()
+  mirror.removeChild(span)
+  const elRect = el.getBoundingClientRect()
+  return {
+    top: elRect.top + spanRect.top - el.scrollTop,
+    bottom: elRect.top + spanRect.bottom - el.scrollTop,
+    left: elRect.left + spanRect.left - el.scrollLeft,
+    right: elRect.left + spanRect.right - el.scrollLeft,
+  }
 }
 
 function findCurrentToken() {
   const el = editorRef.value
   if (!el) return null
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return null
-  const range = sel.getRangeAt(0)
-  if (range.collapsed !== true) return null
-  if (!el.contains(range.startContainer)) return null
-
-  const fullText = getEditorText()
-  const caret = range.startOffset
-  let containerText = fullText
-  let caretInContainer = caret
-  if (range.startContainer.nodeType === Node.TEXT_NODE) {
-    const textNode = range.startContainer
-    const parent = textNode.parentNode
-    if (parent !== el) {
-      let pos = 0
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null)
-      let n
-      while ((n = walker.nextNode())) {
-        if (n === textNode) {
-          caretInContainer = pos + caret
-          containerText = fullText
-          break
-        }
-        pos += n.nodeValue.length
-      }
-    } else {
-      containerText = textNode.nodeValue
-      caretInContainer = caret
-    }
-  }
-
-  const before = containerText.substring(0, caretInContainer)
+  const caret = el.selectionStart
+  const end = el.selectionEnd
+  if (caret !== end) return null
+  const fullText = editorText.value
+  const before = fullText.substring(0, caret)
   const m = /([A-Za-z_][A-Za-z0-9_]*|[`"][^`"]*[`"])?$/.exec(before)
   const token = m && m[1] ? m[1] : ''
-  const startOffset = caretInContainer - token.length
-  const after = containerText.substring(caretInContainer)
+  const startOffset = caret - token.length
+  const after = fullText.substring(caret)
   const followingWord = /^([A-Za-z0-9_`"]+)/.exec(after)
   const hasFollowing = !!followingWord
   return {
     token: token.replace(/^[`"]|[`"]$/g, ''),
     rawToken: token,
     startOffset,
-    caretOffset: caretInContainer,
-    fullText: containerText,
+    caretOffset: caret,
+    fullText,
     hasFollowing,
   }
 }
@@ -471,9 +450,11 @@ function showCompletion() {
     hideCompletion()
     return
   }
+  const wasVisible = completionVisible.value
+  const prevIdx = activeCompletionIdx.value
   completions.value = items
-  activeCompletionIdx.value = 0
   completionVisible.value = true
+  activeCompletionIdx.value = wasVisible ? Math.min(prevIdx, items.length - 1) : 0
   positionPopup()
 }
 
@@ -506,43 +487,28 @@ function applyCompletion(item) {
   const el = editorRef.value
   if (!el) return
   el.focus()
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
-  const range = sel.getRangeAt(0)
-  if (!el.contains(range.startContainer)) return
-
-  const fullText = info.fullText
-  const before = fullText.substring(0, info.startOffset)
-  const after = fullText.substring(info.caretOffset)
-  const newText = before + item.value + after
-  el.innerText = newText
+  const before = info.fullText.substring(0, info.startOffset)
+  const after = info.fullText.substring(info.caretOffset)
+  editorText.value = before + item.value + after
   const newCaret = info.startOffset + item.value.length
-  setCaretAt(el, newCaret)
+  nextTick(() => {
+    el.selectionStart = el.selectionEnd = newCaret
+  })
   hideCompletion()
-  onEditorSelectionChange()
 }
 
 function setCaretAt(el, offset) {
   el.focus()
-  const text = el.firstChild
-  if (!text || text.nodeType !== Node.TEXT_NODE) {
-    moveCaretToEnd()
-    return
-  }
-  const range = document.createRange()
-  const safe = Math.min(offset, text.nodeValue.length)
-  range.setStart(text, safe)
-  range.collapse(true)
-  const sel = window.getSelection()
-  sel.removeAllRanges()
-  sel.addRange(range)
+  const safe = Math.min(offset, editorText.value.length)
+  el.selectionStart = el.selectionEnd = safe
 }
 
 function formatSql() {
   setEditorText((getEditorText() || '').replace(/\s+/g, ' ').trim())
 }
 
-function onEditorInput() {
+function onEditorInput(e) {
+  editorText.value = e.target.value
   showCompletion()
 }
 
@@ -552,13 +518,13 @@ function onEditorSelectionChange() {
     selectedText.value = ''
     return
   }
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) {
+  const start = el.selectionStart
+  const end = el.selectionEnd
+  if (start !== end) {
+    selectedText.value = editorText.value.substring(start, end)
+  } else {
     selectedText.value = ''
-    return
   }
-  const text = sel.toString()
-  selectedText.value = text
   if (completionVisible.value) {
     showCompletion()
   }
@@ -601,17 +567,14 @@ function onEditorKeydown(e) {
     e.preventDefault()
     const el = editorRef.value
     if (!el) return
-    const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0) return
-    const range = sel.getRangeAt(0)
-    if (!el.contains(range.startContainer)) return
-    range.deleteContents()
-    const node = document.createTextNode('  ')
-    range.insertNode(node)
-    range.setStartAfter(node)
-    range.collapse(true)
-    sel.removeAllRanges()
-    sel.addRange(range)
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const before = editorText.value.substring(0, start)
+    const after = editorText.value.substring(end)
+    editorText.value = before + '  ' + after
+    nextTick(() => {
+      el.selectionStart = el.selectionEnd = start + 2
+    })
     onEditorSelectionChange()
     return
   }
@@ -733,7 +696,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // nothing
+  const mirror = document.getElementById('textarea-mirror')
+  if (mirror) mirror.remove()
 })
 </script>
 
@@ -814,24 +778,17 @@ onUnmounted(() => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   outline: none;
+  resize: none;
   overflow: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
-  cursor: text;
   caret-color: #409eff;
-  user-select: text;
-  -webkit-user-select: text;
   background: #fff;
   line-height: 1.5;
+  box-sizing: border-box;
 }
 .sql-editor:focus {
   border-color: #409eff;
-}
-.sql-editor:empty::before {
-  content: attr(data-placeholder);
-  color: #c0c4cc;
-  white-space: pre-wrap;
-  pointer-events: none;
 }
 .completion-popup {
   position: absolute;
