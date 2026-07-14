@@ -49,7 +49,7 @@
             v-for="t in filteredTables"
             :key="t.name"
             class="table-item"
-            @click="insertAtCursor(`\`${t.name}\`")"
+            @click="insertAtCursor('`' + t.name + '`')"
           >
             <el-icon><Grid /></el-icon>
             <span>{{ t.name }}</span>
@@ -372,12 +372,28 @@ function isInsideString() {
   return inS || inD || inB
 }
 
-function isAfterFromOrJoin() {
+function isImmediatelyAfterFrom() {
   const info = currentTokenInfo
   if (!info) return false
   const before = info.fullText.substring(0, info.startOffset)
   const upcase = before.toUpperCase()
   return /(FROM|JOIN|UPDATE|INTO|TABLE)\s+[`"]?[A-Za-z0-9_.]*$/.test(upcase.slice(-200))
+}
+
+function isInColumnContext() {
+  const info = currentTokenInfo
+  if (!info) return false
+  const before = info.fullText.substring(0, info.startOffset).toUpperCase()
+  return (
+    /\bSELECT\b[^]*$/i.test(before) ||
+    /\bWHERE\b[^]*$/i.test(before) ||
+    /\bON\b[^]*$/i.test(before) ||
+    /\bSET\b[^]*$/i.test(before) ||
+    /\bAND\b[^]*$/i.test(before) ||
+    /\bOR\b[^]*$/i.test(before) ||
+    /\bORDER\s+BY\b[^]*$/i.test(before) ||
+    /\bGROUP\s+BY\b[^]*$/i.test(before)
+  )
 }
 
 function kindIcon(kind) {
@@ -396,13 +412,16 @@ function buildCompletions(token) {
   if (currentTokenInfo && isInsideString()) return []
 
   const ctxTable = findContextTable()
-  if (ctxTable && isAfterFromOrJoin()) {
+  const immediatelyAfterFrom = isImmediatelyAfterFrom()
+  const inColumnCtx = isInColumnContext()
+
+  if (ctxTable && immediatelyAfterFrom) {
     for (const t of tables.value) {
       if (t.name.toLowerCase().startsWith(lower)) {
         items.push({ kind: 'table', label: t.name, detail: '表', value: `\`${t.name}\`` })
       }
     }
-  } else if (ctxTable) {
+  } else if (ctxTable && inColumnCtx) {
     const cached = tableDetailCache.value[ctxTable.toLowerCase()]
     if (cached) {
       for (const col of cached) {
