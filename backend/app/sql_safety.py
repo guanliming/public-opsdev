@@ -97,7 +97,11 @@ def _uppercase_letters(sql: str) -> str:
 
 def classify(stmt: str) -> StatementKind:
     kw = _first_keyword(stmt)
-    if kw in ("SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "WITH"):
+    if kw in ("WITH",):
+        if _contains_update_like(stmt):
+            return _classify_main_op(stmt)
+        return StatementKind.SELECT
+    if kw in ("SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"):
         return StatementKind.SELECT
     if kw in ("INSERT",):
         return StatementKind.INSERT
@@ -110,6 +114,26 @@ def classify(stmt: str) -> StatementKind:
     if kw in ("CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME"):
         return StatementKind.DDL
     return StatementKind.OTHER
+
+
+def _classify_main_op(stmt: str) -> StatementKind:
+    upper = _uppercase_letters(stmt)
+    for kw in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
+        if kw in upper:
+            if kw == "INSERT":
+                return StatementKind.INSERT
+            if kw == "UPDATE":
+                return StatementKind.UPDATE
+            if kw == "DELETE":
+                return StatementKind.DELETE
+            if kw == "REPLACE":
+                return StatementKind.REPLACE
+    return StatementKind.OTHER
+
+
+def _contains_update_like(stmt: str) -> bool:
+    upper = _uppercase_letters(stmt)
+    return any(kw in upper for kw in ("INSERT", "UPDATE", "DELETE", "REPLACE"))
 
 
 def is_dangerous_ddl(stmt: str) -> Optional[str]:

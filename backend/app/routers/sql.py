@@ -116,30 +116,37 @@ async def _ensure_database(
 
 
 async def _safe_count_with_conn(conn, database: Optional[str], dml_sql: str) -> int:
-    import re as _re
-
-    upper = dml_sql.upper().lstrip()
+    cleaned = dml_sql.strip()
+    if not cleaned:
+        return 0
+    upper = cleaned.upper()
     if not upper.startswith(("UPDATE", "DELETE", "REPLACE")):
         return 0
-    cleaned = _re.sub(
-        r"^(UPDATE|DELETE|REPLACE)\s+", "", dml_sql, count=1, flags=_re.IGNORECASE
-    )
-    where_idx = cleaned.upper().find(" WHERE ")
-    where_clause = ""
-    if where_idx >= 0:
-        where_clause = cleaned[where_idx:]
-        trailing = _re.search(r"\b(LIMIT|ORDER\s+BY)\b", where_clause.upper())
-        if trailing:
-            where_clause = where_clause[: trailing.start()]
-    count_sql = f"SELECT COUNT(*) AS cnt FROM {cleaned.split(' WHERE ')[0].strip()} {where_clause}".strip()
-    if not where_clause:
-        count_sql = (
-            f"SELECT COUNT(*) AS cnt FROM {cleaned.split(' WHERE ')[0].strip()}".strip()
-        )
-    async with conn.cursor() as cur:
-        await cur.execute(count_sql)
-        row = await cur.fetchone()
-    return int(row[0]) if row else 0
+
+    explain_sql = "EXPLAIN " + cleaned.rstrip(";")
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(explain_sql)
+            rows = await cur.fetchall()
+            if not rows:
+                return 0
+            description = cur.description or []
+            col_names = [d[0].lower() for d in description]
+            try:
+                rows_idx = col_names.index("rows")
+            except ValueError:
+                return 0
+            total = 0
+            for r in rows:
+                try:
+                    v = r[rows_idx]
+                    if v is not None:
+                        total += int(v)
+                except (TypeError, ValueError):
+                    continue
+            return total
+    except Exception:
+        return 0
 
 
 @router.get("/datasources/{ds_id}/databases", response_model=list[SqlDatabaseInfo])

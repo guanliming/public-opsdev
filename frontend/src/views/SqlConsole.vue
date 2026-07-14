@@ -62,11 +62,16 @@
       <div class="main">
         <div class="editor-wrap">
           <textarea
+            ref="editorRef"
             v-model="sqlText"
             class="sql-editor"
-            placeholder="在此输入 SQL,支持多语句(以分号分隔)。SELECT/INSERT/UPDATE/DELETE/REPLACE。&#10;例如: SELECT * FROM users LIMIT 10;"
+            style="cursor: text; caret-color: #409eff;"
+            placeholder="在此输入 SQL,支持多语句(以分号分隔)。SELECT/INSERT/UPDATE/DELETE/REPLACE。&#10;例如: SELECT * FROM users LIMIT 10;&#10;选中部分 SQL 后按 Ctrl+Enter 仅执行选中内容。"
             spellcheck="false"
             @keydown.tab.prevent="handleTab"
+            @keyup="updateSelection"
+            @click="updateSelection"
+            @select="updateSelection"
           ></textarea>
           <div class="editor-actions">
             <el-button type="primary" :loading="running" @click="runSql">
@@ -75,6 +80,10 @@
             </el-button>
             <el-button @click="sqlText = ''">清空</el-button>
             <el-button @click="formatSql">格式化</el-button>
+            <span v-if="hasSelection" class="exec-hint">
+              <el-icon><Aim /></el-icon>
+              将仅执行选中的 {{ selectedText.split(';').filter(s => s.trim()).length }} 条语句
+            </span>
           </div>
         </div>
 
@@ -134,26 +143,13 @@
         </div>
       </div>
     </div>
-
-    <el-dialog
-      v-model="confirmDialogVisible"
-      title="确认执行"
-      width="480px"
-    >
-      <p>{{ confirmMessage }}</p>
-      <p style="color: #909399; font-size: 12px;">提示: 非管理员用户的 UPDATE/DELETE/REPLACE 受影响行数超过 {{ NON_ADMIN_MAX_ROWS }} 会被系统拒绝。</p>
-      <template #footer>
-        <el-button @click="confirmDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="doExecute(true)">确认执行</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Grid, CaretRight } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Grid, CaretRight, Aim } from '@element-plus/icons-vue'
 import request from '../utils/request'
 import { useUserStore } from '../stores/user'
 
@@ -167,10 +163,12 @@ const selectedDs = ref(null)
 const selectedDb = ref('')
 const tableFilter = ref('')
 const sqlText = ref('')
+const editorRef = ref(null)
+const selectedText = ref('')
 const running = ref(false)
 const results = ref(null)
-const confirmDialogVisible = ref(false)
-const confirmMessage = ref('')
+
+const hasSelection = computed(() => !!selectedText.value.trim())
 
 const rowLimitHint = computed(() => {
   if (userStore.isAdmin) return ''
@@ -211,6 +209,25 @@ function insertTableName(name) {
 
 function formatSql() {
   sqlText.value = (sqlText.value || '').replace(/\s+/g, ' ').trim()
+}
+
+function updateSelection(e) {
+  const el = e?.target || editorRef.value
+  if (!el) return
+  const start = el.selectionStart ?? 0
+  const end = el.selectionEnd ?? 0
+  if (start === end) {
+    selectedText.value = ''
+  } else {
+    selectedText.value = sqlText.value.substring(start, end)
+  }
+}
+
+function getSqlToExecute() {
+  if (selectedText.value.trim()) {
+    return selectedText.value
+  }
+  return sqlText.value
 }
 
 async function loadDatasources() {
@@ -262,43 +279,28 @@ async function refreshTables() {
   await onDbChange()
 }
 
-function hasDestructive() {
-  if (!sqlText.value) return false
-  return /\b(UPDATE|DELETE|REPLACE)\b/i.test(sqlText.value)
-}
-
 async function runSql() {
   if (!selectedDs.value) {
     ElMessage.warning('请先选择数据源')
     return
   }
-  if (!sqlText.value.trim()) {
-    ElMessage.warning('请输入 SQL')
+  const text = getSqlToExecute()
+  if (!text.trim()) {
+    ElMessage.warning(selectedText.value.trim() ? '选中内容为空' : '请输入 SQL')
     return
-  }
-  if (!userStore.isAdmin && hasDestructive()) {
-    try {
-      await ElMessageBox.confirm(
-        `检测到 UPDATE/DELETE/REPLACE 语句,非管理员执行超过 ${NON_ADMIN_MAX_ROWS} 行将被系统拒绝。是否继续?`,
-        '确认',
-        { type: 'warning' },
-      )
-    } catch (e) {
-      return
-    }
   }
   await doExecute(false)
 }
 
 async function doExecute(confirmed) {
-  confirmDialogVisible.value = false
   running.value = true
   try {
+    const text = getSqlToExecute()
     const res = await request.post(`/sql/datasources/${selectedDs.value}/execute`, {
-      sql: sqlText.value,
+      sql: text,
       database: selectedDb.value || null,
       max_rows: 1000,
-      confirm_large_change: confirmed,
+      confirm_large_change: !!confirmed,
     })
     results.value = res.data
     if (res.data.statements.some((s) => s.error)) {
@@ -404,12 +406,27 @@ onUnmounted(() => {
   border-radius: 4px;
   resize: vertical;
   outline: none;
+  cursor: text;
+  caret-color: #409eff;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .sql-editor:focus {
   border-color: #409eff;
 }
 .editor-actions {
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.exec-hint {
+  margin-left: 12px;
+  color: #67c23a;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .result-area {
   flex: 1;
