@@ -629,6 +629,7 @@ async function onDsChange() {
   } catch (e) {
     ElMessage.error('加载数据库列表失败')
   }
+  saveSqlSession()
 }
 
 async function onDbChange() {
@@ -648,10 +649,43 @@ async function onDbChange() {
   } catch (e) {
     ElMessage.error('加载表列表失败')
   }
+  saveSqlSession()
 }
 
 async function refreshTables() {
   await onDbChange()
+}
+
+async function saveSqlSession() {
+  try {
+    if (selectedDs.value) localStorage.setItem(`sql_ds_${userStore.username}`, selectedDs.value)
+    if (selectedDb.value) localStorage.setItem(`sql_db_${userStore.username}`, selectedDb.value)
+  } catch (_) {}
+}
+
+async function restoreSqlSession() {
+  try {
+    const dbName = localStorage.getItem(`sql_db_${userStore.username}`)
+    if (!selectedDs.value) return
+    if (!databases.value.length) await onDsChange()
+    if (dbName && databases.value.some(d => d.name === dbName)) {
+      selectedDb.value = dbName
+      await onDbChange()
+    }
+  } catch (_) {}
+}
+
+async function saveSqlHistory() {
+  try {
+    localStorage.setItem(`sql_history_${userStore.username}`, editorText.value)
+  } catch (_) {}
+}
+
+function loadSqlHistory() {
+  try {
+    const saved = localStorage.getItem(`sql_history_${userStore.username}`)
+    if (saved) editorText.value = saved
+  } catch (_) {}
 }
 
 async function runSql() {
@@ -664,6 +698,7 @@ async function runSql() {
     ElMessage.warning(selectedText.value.trim() ? '选中内容为空' : '请输入 SQL')
     return
   }
+  saveSqlHistory()
   await doExecute(false)
 }
 
@@ -690,9 +725,13 @@ async function doExecute(confirmed) {
   }
 }
 
-onMounted(() => {
-  loadDatasources()
+onMounted(async () => {
+  loadSqlHistory()
+  const savedDsId = localStorage.getItem(`sql_ds_${userStore.username}`)
+  if (savedDsId) selectedDs.value = parseInt(savedDsId) || savedDsId
+  await loadDatasources()
   loadKeywords()
+  await restoreSqlSession()
 })
 
 onUnmounted(() => {
