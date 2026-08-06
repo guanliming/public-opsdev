@@ -11,10 +11,10 @@
       <el-table-column prop="branch" label="部署分支" width="120" />
       <el-table-column prop="root_dir" label="项目根目录" width="140" />
       <el-table-column prop="deploy_script" label="部署脚本" width="160" />
-      <el-table-column prop="build_type" label="打包类型" width="100">
+<el-table-column prop="build_type" label="打包类型" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.build_type === 'docker' ? 'warning' : 'success'" size="small">
-            {{ row.build_type === 'docker' ? 'Docker' : 'JAR' }}
+          <el-tag :type="buildTypeTagType(row.build_type)" size="small">
+            {{ buildTypeLabel(row.build_type) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -47,14 +47,15 @@
         <el-form-item label="部署脚本" prop="deploy_script">
           <el-input v-model="form.deploy_script" placeholder="./deploy.sh" />
         </el-form-item>
-        <el-form-item label="打包类型" prop="build_type">
+<el-form-item label="打包类型" prop="build_type">
           <el-radio-group v-model="form.build_type">
             <el-radio value="jar">JAR (Maven)</el-radio>
             <el-radio value="docker">Docker (自定义构建脚本)</el-radio>
+            <el-radio value="npm">NPM (Node 构建)</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="form.build_type === 'docker'" label="构建脚本" prop="build_script">
-          <el-input v-model="form.build_script" placeholder="/opt/scripts/build.sh" />
+        <el-form-item v-if="form.build_type === 'docker' || form.build_type === 'npm'" label="构建脚本" prop="build_script">
+          <el-input v-model="form.build_script" :placeholder="form.build_type === 'npm' ? '留空则执行: npm ci && npm run build' : '/opt/scripts/build.sh'" />
         </el-form-item>
         <el-form-item label="应用日志路径" prop="log_path">
           <el-input v-model="form.log_path" placeholder="/var/log/app.log" />
@@ -111,6 +112,18 @@ const deployStatusType = computed(() => {
   if (deployStatus.value === 'failed') return 'danger'
   return 'info'
 })
+
+function buildTypeLabel(t) {
+  if (t === 'docker') return 'Docker'
+  if (t === 'npm') return 'NPM'
+  return 'JAR'
+}
+
+function buildTypeTagType(t) {
+  if (t === 'docker') return 'warning'
+  if (t === 'npm') return 'success'
+  return ''
+}
 
 const deployStatusText = computed(() => {
   if (deployStatus.value === 'running') return '部署中...'

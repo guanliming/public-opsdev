@@ -137,25 +137,37 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
         if not is_git_repo:
             log_lines.append("--- 未检测到代码，开始 clone ---\n")
             os.makedirs(root_dir, exist_ok=True)
-            rc = await run_command(f"git clone {ssh_url} .", root_dir, log_lines, deploy_log_id)
+            rc = await run_command(
+                f"git clone {ssh_url} .", root_dir, log_lines, deploy_log_id
+            )
             if rc != 0:
                 raise Exception(f"git clone 失败，退出码: {rc}")
-            rc = await run_command(f"git checkout {branch}", root_dir, log_lines, deploy_log_id)
+            rc = await run_command(
+                f"git checkout {branch}", root_dir, log_lines, deploy_log_id
+            )
             if rc != 0:
                 raise Exception(f"git checkout 失败，退出码: {rc}")
         else:
             log_lines.append("--- 检测到已有代码，切换分支并拉取最新 ---\n")
             await run_command("pwd", root_dir, log_lines, deploy_log_id)
             await run_command("git branch", root_dir, log_lines, deploy_log_id)
-            await run_command("git rev-parse --show-toplevel", root_dir, log_lines, deploy_log_id)
-            rc = await run_command("git fetch --all", root_dir, log_lines, deploy_log_id)
+            await run_command(
+                "git rev-parse --show-toplevel", root_dir, log_lines, deploy_log_id
+            )
+            rc = await run_command(
+                "git fetch --all", root_dir, log_lines, deploy_log_id
+            )
             if rc != 0:
                 raise Exception(f"git fetch 失败，退出码: {rc}")
-            rc = await run_command(f"git checkout {branch}", root_dir, log_lines, deploy_log_id)
+            rc = await run_command(
+                f"git checkout {branch}", root_dir, log_lines, deploy_log_id
+            )
             if rc != 0:
                 raise Exception(f"git checkout {branch} 失败，退出码: {rc}")
             await run_command("git branch", root_dir, log_lines, deploy_log_id)
-            rc = await run_command(f"git pull origin {branch}", root_dir, log_lines, deploy_log_id)
+            rc = await run_command(
+                f"git pull origin {branch}", root_dir, log_lines, deploy_log_id
+            )
             if rc != 0:
                 raise Exception(f"git pull 失败，退出码: {rc}")
             await run_command("git branch", root_dir, log_lines, deploy_log_id)
@@ -174,29 +186,62 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
             rc = await run_command(build_cmd, build_cwd, log_lines, deploy_log_id)
             if rc != 0:
                 raise Exception(f"构建脚本执行失败，退出码: {rc}")
+        elif project.build_type == "npm":
+            if project.build_script:
+                build_script_path = str(project.build_script)
+                if os.path.isabs(build_script_path):
+                    build_cmd = build_script_path
+                    build_cwd = os.path.dirname(build_script_path)
+                else:
+                    build_cmd = build_script_path
+                    build_cwd = root_dir
+                log_lines.append(f"构建类型: npm，执行自定义构建脚本: {build_script_path}\n")
+            else:
+                build_cmd = "npm ci && npm run build"
+                build_cwd = root_dir
+                log_lines.append("构建类型: npm，执行默认命令: npm ci && npm run build\n")
+            rc = await run_command(build_cmd, build_cwd, log_lines, deploy_log_id)
+            if rc != 0:
+                raise Exception(f"npm 构建失败，退出码: {rc}")
         else:
             # jar: Maven package
             log_lines.append("构建类型: jar，执行 Maven 打包\n")
-            rc = await run_command("mvn clean package -Dmaven.test.skip=true", root_dir, log_lines, deploy_log_id)
+            rc = await run_command(
+                "mvn clean package -Dmaven.test.skip=true",
+                root_dir,
+                log_lines,
+                deploy_log_id,
+            )
             if rc != 0:
                 raise Exception(f"mvn package 失败，退出码: {rc}")
 
             # Find and move artifact to deploy_script directory
             log_lines.append("\n--- 移动打包文件 ---\n")
-            artifacts = glob_mod.glob(os.path.join(root_dir, "**/target/*.jar"), recursive=True) + \
-                        glob_mod.glob(os.path.join(root_dir, "**/target/*.war"), recursive=True)
-            artifacts = [a for a in artifacts if not a.endswith("-sources.jar")
-                         and not a.endswith("-javadoc.jar")
-                         and not a.endswith("-tests.jar")
-                         and "original-" not in os.path.basename(a)]
+            artifacts = glob_mod.glob(
+                os.path.join(root_dir, "**/target/*.jar"), recursive=True
+            ) + glob_mod.glob(os.path.join(root_dir, "**/target/*.war"), recursive=True)
+            artifacts = [
+                a
+                for a in artifacts
+                if not a.endswith("-sources.jar")
+                and not a.endswith("-javadoc.jar")
+                and not a.endswith("-tests.jar")
+                and "original-" not in os.path.basename(a)
+            ]
             if not artifacts:
                 raise Exception("未找到打包产物 (*.jar / *.war)")
 
             project_name_lower = project.name.lower()
-            matched = [a for a in artifacts if project_name_lower in os.path.basename(a).lower()]
+            matched = [
+                a
+                for a in artifacts
+                if project_name_lower in os.path.basename(a).lower()
+            ]
             artifact = matched[0] if matched else artifacts[0]
             if len(artifacts) > 1:
-                log_lines.append(f"检测到多个打包产物，根据项目名称 [{project.name}] 匹配: {os.path.basename(artifact)}\n")
+                log_lines.append(
+                    f"检测到多个打包产物，根据项目名称 [{project.name}] 匹配: {os.path.basename(artifact)}\n"
+                )
             artifact_name = os.path.basename(artifact)
 
             if os.path.isabs(deploy_script):
@@ -233,7 +278,9 @@ async def do_deploy(project: Project, deployer: str, deploy_log_id: int):
 
     # Update deploy log in database
     async with async_session() as db:
-        result = await db.execute(select(DeployLog).where(DeployLog.id == deploy_log_id))
+        result = await db.execute(
+            select(DeployLog).where(DeployLog.id == deploy_log_id)
+        )
         record = result.scalar_one()
         record.status = final_status
         record.log = "".join(log_lines)
@@ -298,7 +345,9 @@ async def get_deploy_log(
     result = await db.execute(select(DeployLog).where(DeployLog.id == log_id))
     record = result.scalar_one_or_none()
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在"
+        )
     return record
 
 
@@ -311,7 +360,9 @@ async def delete_deploy_log(
     result = await db.execute(select(DeployLog).where(DeployLog.id == log_id))
     record = result.scalar_one_or_none()
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在"
+        )
     await db.delete(record)
     await db.commit()
 
@@ -327,14 +378,20 @@ async def stream_deploy_log(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
     result = await db.execute(select(DeployLog).where(DeployLog.id == log_id))
     record = result.scalar_one_or_none()
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="部署日志不存在"
+        )
 
     async def event_generator():
         sent_index = 0
@@ -347,7 +404,9 @@ async def stream_deploy_log(
                 sent_index = len(lines)
 
             async with async_session() as check_db:
-                res = await check_db.execute(select(DeployLog.status).where(DeployLog.id == log_id))
+                res = await check_db.execute(
+                    select(DeployLog.status).where(DeployLog.id == log_id)
+                )
                 current_status = res.scalar_one()
             if current_status != "running":
                 # Send remaining lines
@@ -366,6 +425,7 @@ async def stream_deploy_log(
 
 
 # --- Application Logs Endpoints ---
+
 
 @router.get("/api/logs/files")
 async def list_log_files(
@@ -392,16 +452,21 @@ async def list_log_files(
                     continue
                 stat = os.stat(fpath)
                 ftype = "gz" if fpath.endswith(".gz") else "log"
-                files.append({
-                    "name": os.path.basename(fpath),
-                    "path": fpath,
-                    "type": ftype,
-                    "size": stat.st_size,
-                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=_beijing).isoformat(),
-                })
+                files.append(
+                    {
+                        "name": os.path.basename(fpath),
+                        "path": fpath,
+                        "type": ftype,
+                        "size": stat.st_size,
+                        "mtime": datetime.fromtimestamp(
+                            stat.st_mtime, tz=_beijing
+                        ).isoformat(),
+                    }
+                )
 
     files.sort(key=lambda x: x["mtime"], reverse=True)
     return {"files": files, "base_dir": script_dir}
+
 
 @router.get("/api/logs/tail")
 async def tail_app_logs(
@@ -490,9 +555,13 @@ async def stream_app_logs(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
     async with async_session() as db:
         result = await db.execute(select(Project).where(Project.id == project_id))

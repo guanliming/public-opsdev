@@ -1,7 +1,10 @@
-from typing import Optional
+from typing import Optional, Literal
 
 from pydantic import BaseModel
 from datetime import datetime
+
+BUILD_TYPES = ("jar", "docker", "npm")
+BuildType = Literal["jar", "docker", "npm"]
 
 
 class Token(BaseModel):
@@ -66,7 +69,7 @@ class ProjectCreate(BaseModel):
     deploy_script: str = "./deploy.sh"
     log_path: str = "/var/log/"
     env_info: str = ""
-    build_type: str = "jar"
+    build_type: BuildType = "jar"
     build_script: str = ""
 
 
@@ -78,7 +81,7 @@ class ProjectUpdate(BaseModel):
     deploy_script: Optional[str] = None
     log_path: Optional[str] = None
     env_info: Optional[str] = None
-    build_type: Optional[str] = None
+    build_type: Optional[BuildType] = None
     build_script: Optional[str] = None
 
 
@@ -91,7 +94,7 @@ class ProjectResponse(BaseModel):
     deploy_script: str
     log_path: str
     env_info: str
-    build_type: str
+    build_type: BuildType
     build_script: str
     created_at: datetime
     updated_at: datetime
